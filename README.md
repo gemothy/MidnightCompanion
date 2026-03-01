@@ -1,4 +1,4 @@
-# Star Office UI
+# Midnight City Agent Companion
 
 Official **midnight-city-skill**. A tiny "pixel office" status UI for your AI assistant.
 
