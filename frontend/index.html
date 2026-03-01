@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Office</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        #game-container { border: 4px solid #e94560; image-rendering: pixelated; }
+        #mobile-logo { display: none; }
+        #status-text {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            color: #eee; font-size: 14px; background: rgba(0,0,0,0.7);
+            padding: 10px 20px; border-radius: 4px; max-width: 90%; text-align: center; z-index: 10;
+        }
+        #char-select {
+            position: fixed; top: 10px; right: 10px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 1px solid #555; color: #eee;
+            font: 11px 'Courier New', monospace; padding: 4px 6px; border-radius: 4px;
+            cursor: pointer; -webkit-appearance: none; appearance: none;
+        }
+        #char-select option { background: #1a1a2e; }
+        #music-btn {
+            position: fixed; top: 10px; right: 120px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 1px solid #555; color: #eee;
+            font: 13px monospace; padding: 3px 8px; border-radius: 4px;
+            cursor: pointer; line-height: 1;
+        }
+        #music-btn:hover { background: rgba(60,30,80,0.8); }
+        @media (max-width: 700px) {
+            #game-container { border: none; width: 100vw; height: 100vh; }
+            #status-text {
+                top: 10px !important; bottom: unset !important;
+                font-size: 11px; padding: 5px 12px; max-width: 70%; width: auto;
+            }
+            #mobile-logo {
+                display: block; position: fixed; bottom: 12px; left: 50%;
+                transform: translateX(-50%); background: rgba(26,26,46,0.9);
+                padding: 8px 24px; border-radius: 6px; border: 2px solid #444; z-index: 10;
+            }
+            #mobile-logo img { height: 24px; image-rendering: pixelated; }
+            #char-select { top: 8px; right: 8px; font-size: 10px; padding: 3px 5px; }
+            #music-btn { top: 8px; right: 90px; font-size: 11px; padding: 2px 6px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="status-text">Loading…</div>
+    <div id="mobile-logo"><img src="/static/midnight-city-logo.png" alt=""></div>
+    <button id="music-btn" title="Tune in">♫</button>
+    <select id="char-select" aria-label="Character">
+        <option value="nyx" aria-label="Default agent">Default</option>
+        <option value="burdy" aria-label="RangerBurdy – cowboy mode">RangerBurdy</option>
+        <option value="chad" aria-label="Chad – confident casual">Chad</option>
+        <option value="mccharles" aria-label="McCharles">McCharles</option>
+        <option value="mcchad" aria-label="McChad">McChad</option>
+        <option value="jj" aria-label="JJ">JJ</option>
+        <option value="josh" aria-label="Josh">Josh</option>
+        <option value="tony" aria-label="Tony">Tony</option>
+    </select>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <script>
+        const isMobile = window.innerWidth < 700;
+        const config = {
+            type: Phaser.AUTO,
+            width: isMobile ? window.innerWidth : 800,
+            height: isMobile ? window.innerHeight : 600,
+            parent: 'game-container',
+            pixelArt: true,
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+            scene: { preload, create, update },
+            scale: isMobile ? { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH } : {}
+        };
+
+        const BUBBLE_TEXTS = {
+            idle: ['Chilling…', 'Any new tasks?', 'Coffee is good', 'Stretching'],
+            writing: ['Note to self', 'Fingers tired', 'Double-checking', 'Writing it down'],
+            researching: ['Looking it up', 'Found something', 'Interesting', 'Digging deeper'],
+            executing: ['On it!', 'Easy peasy', 'Almost there', 'Getting it done'],
+            syncing: ['Backing up', 'Safety first', 'Syncing…', 'To the cloud'],
+            error: ['Oops…', 'Something broke', 'Checking…', 'Fixing it']
+        };
+
+        const CHARACTERS = {
+            nyx: {
+                scale: 0.7,
+                displayName: 'Default',
+                bubbleTexts: BUBBLE_TEXTS,
+                tapPhrases: ['Hey.', 'What’s up?', 'Need something?'],
+                switchPhrase: 'Here.',
+                sheets: {
+                    idle:    { key: 'nyx_idle',    file: 'Nyx-idle-v1.png',    fw: 256, fh: 256, end: 24 },
+                    talking: { key: 'nyx_talking',  file: 'Nyx-talking-v1.png',  fw: 256, fh: 256, end: 24 },
+                    walking: null
+                }
+            },
+            burdy: {
+                scale: 0.55,
+                displayName: 'RangerBurdy',
+                bubbleTexts: {
+                    idle: ['Hold your horses', "Keepin' an eye out", 'All quiet on the range', 'Coffee’s on'],
+                    writing: ['Putting it in writing', 'Ink on the page', 'Taking notes'],
+                    researching: ["Diggin' for gold", 'Tracking it down', 'Looking into it'],
+                    executing: ["Gettin' it done", 'On the job', 'Riding out'],
+                    syncing: ['Rounding up', 'Backing up the herd', 'Syncing…'],
+                    error: ['Whoa there', 'Hit a snag', 'Checking the reins']
+                },
+                tapPhrases: ['Howdy.', 'What can I do for ya?', 'At your service.'],
+                switchPhrase: "Howdy, it's RangerBurdy.",
+                sheets: {
+                    idle:    { key: 'burdy_idle',    file: 'RangerBurdySpriteIdle.png',     fw: 148, fh: 261, end: 35 },
+                    talking: { key: 'burdy_think',   file: 'RangerBurdySpriteThinking.png', fw: 143, fh: 258, end: 35 },
+                    walking: { key: 'burdy_walk',    file: 'RangerBurdySpriteWalking.png',  fw: 185, fh: 264, end: 35 }
+                }
+            },
+            chad: {
+                scale: 0.5,
+                displayName: 'Chad',
+                bubbleTexts: {
+                    idle: ['Ready when you are', 'Just vibing', 'What’s the move?', 'All good'],
+                    writing: ['Locking it in', 'Putting it down', 'On the draft'],
+                    researching: ['Checking it out', 'On it', 'Looking into it'],
+                    executing: ['Getting it done', 'Easy.', 'Almost there'],
+                    syncing: ['Backing up', 'Syncing…', 'All set'],
+                    error: ['Oops', 'On it', 'Checking…']
+                },
+                tapPhrases: ['Hey!', 'What’s up?', 'Need something?'],
+                switchPhrase: 'Chad in the house.',
+                sheets: {
+                    idle:    { key: 'chad_idle',    file: 'ChadSpriteIdle.png',     fw: 281, fh: 264, end: 35 },
+                    talking: { key: 'chad_think',   file: 'ChadSpriteThinking.png', fw: 281, fh: 264, end: 35 },
+                    walking: { key: 'chad_walk',    file: 'ChadSpriteWalking.png',  fw: 281, fh: 264, end: 35 }
+                }
+            },
+            mccharles: {
+                scale: 0.5,
+                displayName: 'McCharles',
+                bubbleTexts: {
+                    idle: ['On standby', "What's the move?", 'Ready.', 'Here when you need me'],
+                    writing: ['Writing it up', 'Drafting', 'On the doc'],
+                    researching: ['Looking it up', 'On it', 'Checking…'],
+                    executing: ['On it.', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing…', 'Backing up', 'All set'],
+                    error: ['Checking…', 'On it', 'One sec']
+                },
+                tapPhrases: ['Hey.', 'What’s up?', 'Need something?'],
+                switchPhrase: "McCharles here.",
+                sheets: {
+                    idle:    { key: 'mccharles_idle',    file: 'McCharlesSpriteIdle.png',     fw: 186, fh: 263, end: 35 },
+                    talking: { key: 'mccharles_idle',    file: 'McCharlesSpriteIdle.png',     fw: 186, fh: 263, end: 35 },
+                    walking: { key: 'mccharles_walk',    file: 'McCharlesSpriteWalking.png',  fw: 186, fh: 263, end: 35 }
+                }
+            },
+            mcchad: {
+                scale: 0.5,
+                moveSpeed: 2.8,
+                displayName: 'McChad',
+                bubbleTexts: {
+                    idle: ['On standby', "What's the move?", 'Ready when you are', 'Here.'],
+                    writing: ['Locking it in', 'Drafting', 'On the doc'],
+                    researching: ['On it', 'Looking it up', 'Checking…'],
+                    executing: ['Getting it done', 'On it.', 'Almost there'],
+                    syncing: ['Syncing…', 'Backing up', 'All set'],
+                    error: ['Checking…', 'On it', 'One sec']
+                },
+                tapPhrases: ['Hey!', 'What’s up?', 'Need something?'],
+                switchPhrase: "McChad in the building.",
+                sheets: {
+                    idle:    { key: 'mcchad_idle',    file: 'McChadSpriteIdle.png',     fw: 283, fh: 266, end: 35 },
+                    talking: { key: 'mcchad_talk',   file: 'McChadSpriteTalking.png',  fw: 283, fh: 266, end: 35 },
+                    walking: { key: 'mcchad_walk',   file: 'McChadSpriteWalking.png',  fw: 283, fh: 266, end: 35 }
+                }
+            },
+            jj: {
+                scale: 0.5,
+                displayName: 'JJ',
+                bubbleTexts: {
+                    idle: ['Chilling…', 'Any new tasks?', 'Ready when you are'],
+                    writing: ['Note to self', 'Writing it down', 'On the draft'],
+                    researching: ['Looking it up', 'Digging deeper', 'On it'],
+                    executing: ['On it!', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing…', 'Backing up', 'All set'],
+                    error: ['Oops…', 'Checking…', 'Fixing it']
+                },
+                tapPhrases: ['Hey!', 'What’s up?', 'Need something?'],
+                switchPhrase: "JJ here.",
+                sheets: {
+                    idle:    { key: 'jj_idle',    file: 'JJSpriteIdle.png',    fw: 172, fh: 268, end: 35 },
+                    talking: { key: 'jj_talking', file: 'JJSpriteTalking.png', fw: 172, fh: 268, end: 35 },
+                    walking: { key: 'jj_walk',    file: 'JJSpriteWalking.png', fw: 172, fh: 268, end: 35 }
+                }
+            },
+            josh: {
+                scale: 0.68,
+                displayName: 'Josh',
+                bubbleTexts: {
+                    idle: ['Chilling…', 'Any new tasks?', 'Ready when you are'],
+                    writing: ['Note to self', 'Writing it down', 'On the draft'],
+                    researching: ['Looking it up', 'Digging deeper', 'On it'],
+                    executing: ['On it!', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing…', 'Backing up', 'All set'],
+                    error: ['Oops…', 'Checking…', 'Fixing it']
+                },
+                tapPhrases: ['Hey!', 'What’s up?', 'Need something?'],
+                switchPhrase: "Josh here.",
+                sheets: {
+                    idle:    { key: 'josh_idle',    file: 'JoshSpriteIdle.png',    fw: 124, fh: 271, end: 35 },
+                    talking: { key: 'josh_talking', file: 'JoshSpriteTalking.png', fw: 124, fh: 271, end: 35 },
+                    walking: { key: 'josh_walk',   file: 'JoshSpriteWalking.png', fw: 124, fh: 271, end: 35 }
+                }
+            },
+            tony: {
+                scale: 0.8,
+                displayName: 'Tony',
+                bubbleTexts: {
+                    idle: ['Chilling…', 'Stay hydrated.', 'Any new tasks?'],
+                    writing: ['Note to self', 'Writing it down', 'On the draft'],
+                    researching: ['Looking it up', 'Digging deeper', 'On it'],
+                    executing: ['On it!', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing…', 'Backing up', 'All set'],
+                    error: ['Oops…', 'Checking…', 'Fixing it']
+                },
+                tapPhrases: ['Hey!', 'What’s up?', 'Need something?'],
+                switchPhrase: "Tony here.",
+                sheets: {
+                    idle:    { key: 'tony_idle',    file: 'TonySpriteIdle.png',    fw: 273, fh: 232, end: 35 },
+                    talking: { key: 'tony_talking', file: 'TonySpriteTalking.png', fw: 273, fh: 232, end: 35 },
+                    walking: { key: 'tony_walk',    file: 'TonySpriteWalking.png', fw: 273, fh: 232, end: 35 }
+                }
+            }
+        };
+
+        const STATES = {
+            idle:        { name: 'Idle',        area: 'breakroom', label: 'On break' },
+            writing:     { name: 'Writing',     area: 'workdesk',  label: 'Writing' },
+            researching: { name: 'Researching', area: 'workdesk',  label: 'Looking it up' },
+            executing:   { name: 'Executing',   area: 'workdesk',  label: 'On it' },
+            syncing:     { name: 'Syncing',     area: 'breakroom', label: 'Syncing' },
+            error:       { name: 'Error',       area: 'breakroom', label: 'Something went wrong' }
+        };
+
+        let game, sprite, areas = {}, currentState = 'idle', statusText;
+        let lastFetch = 0, lastBubble = 0, bubble = null, lastTapTime = 0, loadingDone = false;
+        let typewriterText = '', typewriterTarget = '', typewriterIndex = 0, lastTypewriter = 0;
+        let waypoints = [], wpIndex = 0, isMoving = false;
+        let currentChar = localStorage.getItem('star-office-char') || 'nyx';
+if (currentChar === 'charles') currentChar = 'chad';
+
+        const FETCH_INTERVAL = 2000, BUBBLE_INTERVAL = 8000, TYPEWRITER_DELAY = 50;
+        const LOADING_MESSAGES = ['Warming up…', 'Almost there…', 'Grab a coffee…', 'Loading…'];
+
+        const WALKABLE = [
+            { x: 150, y: 300, w: 310, h: 180 },
+            { x: 530, y: 310, w: 240, h: 170 },
+            { x: 150, y: 460, w: 620, h: 90 },
+        ];
+
+        function clampToWalkable(x, y) {
+            let best = null, bestDist = Infinity;
+            for (const r of WALKABLE) {
+                const cx = Math.max(r.x, Math.min(r.x + r.w, x));
+                const cy = Math.max(r.y, Math.min(r.y + r.h, y));
+                const d = (cx - x) ** 2 + (cy - y) ** 2;
+                if (d < bestDist) { bestDist = d; best = { x: cx, y: cy }; }
+            }
+            return best || { x, y };
+        }
+
+        function inZone(x, y, z) { return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h; }
+        function getZone(x, y) { return WALKABLE.findIndex(z => inZone(x, y, z)); }
+
+        function buildPath(fx, fy, tx, ty) {
+            const fromZ = getZone(fx, fy);
+            const toZ = getZone(tx, ty);
+            if (fromZ === toZ || fromZ < 0 || toZ < 0) return [{ x: tx, y: ty }];
+            const corY = WALKABLE[2].y + 20;
+            return [{ x: fx, y: corY }, { x: tx, y: corY }, { x: tx, y: ty }];
+        }
+
+        function preload() {
+            this.load.image('office_bg', '/static/office_bg.png');
+            this.load.image('midnight_logo', '/static/midnight-city-logo.png');
+            for (const ch of Object.values(CHARACTERS)) {
+                for (const s of Object.values(ch.sheets)) {
+                    if (s) this.load.spritesheet(s.key, '/static/' + s.file, { frameWidth: s.fw, frameHeight: s.fh });
+                }
+            }
+        }
+
+        function create() {
+            game = this;
+            this.add.image(400, 300, 'office_bg');
+            areas = {
+                workdesk:  { x: 220, y: 400 },
+                breakroom: { x: 640, y: 340 },
+                alert:     { x: 640, y: 400 }
+            };
+
+            for (const ch of Object.values(CHARACTERS)) {
+                for (const s of Object.values(ch.sheets)) {
+                    if (!s) continue;
+                    const animKey = s.key;
+                    if (!this.anims.exists(animKey)) {
+                        this.anims.create({
+                            key: animKey,
+                            frames: this.anims.generateFrameNumbers(s.key, { start: 0, end: s.end }),
+                            frameRate: animKey.includes('walk') ? 10 : 8,
+                            repeat: -1
+                        });
+                    }
+                }
+            }
+
+            const ch = CHARACTERS[currentChar];
+            sprite = this.physics.add.sprite(640, 360, ch.sheets.idle.key, 0);
+            sprite.setOrigin(0.5, 0.85);
+            sprite.setScale(ch.scale);
+            sprite.setAlpha(1);
+            sprite.setDepth(50);
+            sprite.play(ch.sheets.idle.key);
+            sprite.setInteractive({ useHandCursor: true });
+            this.input.on('pointerdown', (ptr) => {
+                if (Date.now() - lastTapTime < 3000) return;
+                const bounds = sprite.getBounds();
+                const wx = ptr.worldX != null ? ptr.worldX : ptr.x;
+                const wy = ptr.worldY != null ? ptr.worldY : ptr.y;
+                if (!bounds.contains(wx, wy)) return;
+                lastTapTime = Date.now();
+                const ch = CHARACTERS[currentChar];
+                const phrases = (ch && ch.tapPhrases) || ['Hi!'];
+                const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+                showOneOffBubble(phrase, 2000);
+            });
+
+            if (!isMobile) {
+                const plaqueBg = this.add.rectangle(400, 570, 380, 44, 0x2a1a3e);
+                plaqueBg.setStrokeStyle(2, 0x6b3a7d);
+                const logo = this.add.image(400, 570, 'midnight_logo');
+                logo.setOrigin(0.5);
+                logo.setDisplaySize(320, 32);
+            }
+
+            if (isMobile) {
+                const cam = this.cameras.main;
+                cam.setBounds(0, 0, 800, 600);
+                cam.setZoom(1.4);
+                cam.startFollow(sprite, true, 0.04, 0.04);
+                cam.setDeadzone(100, 60);
+
+                let dragStart = null, refollow = null;
+                this.input.on('pointerdown', (p) => {
+                    dragStart = { x: p.x, y: p.y, sx: cam.scrollX, sy: cam.scrollY };
+                    cam.stopFollow();
+                    if (refollow) { clearTimeout(refollow); refollow = null; }
+                });
+                this.input.on('pointermove', (p) => {
+                    if (!dragStart || !p.isDown) return;
+                    cam.scrollX = dragStart.sx - (p.x - dragStart.x) / cam.zoom;
+                    cam.scrollY = dragStart.sy - (p.y - dragStart.y) / cam.zoom;
+                });
+                this.input.on('pointerup', () => {
+                    dragStart = null;
+                    refollow = setTimeout(() => {
+                        cam.startFollow(sprite, true, 0.04, 0.04);
+                        cam.setDeadzone(100, 60);
+                    }, 20000);
+                });
+            }
+
+            statusText = document.getElementById('status-text');
+            let loadingMsgIndex = 0;
+            setInterval(() => {
+                if (!loadingDone && statusText) statusText.textContent = LOADING_MESSAGES[loadingMsgIndex++ % LOADING_MESSAGES.length];
+            }, 1500);
+            const sel = document.getElementById('char-select');
+            sel.value = currentChar;
+            sel.addEventListener('change', () => switchCharacter(sel.value));
+            fetchStatus();
+        }
+
+        function switchCharacter(name) {
+            if (!CHARACTERS[name]) return;
+            currentChar = name;
+            localStorage.setItem('star-office-char', name);
+            const ch = CHARACTERS[name];
+            const oldX = sprite.x, oldY = sprite.y;
+            const idleKey = ch.sheets.idle.key;
+            sprite.setTexture(idleKey, 0);
+            sprite.setScale(ch.scale);
+            sprite.x = oldX;
+            sprite.y = oldY;
+            playAnim();
+            const phrase = (ch.switchPhrase != null) ? ch.switchPhrase : ("Now you're " + (ch.displayName || name) + "!");
+            showOneOffBubble(phrase, 2000);
+        }
+
+        function playAnim() {
+            const ch = CHARACTERS[currentChar];
+            const working = ['writing', 'researching', 'executing'].includes(currentState);
+            if (isMoving && ch.sheets.walking) {
+                sprite.play(ch.sheets.walking.key, true);
+            } else if (working) {
+                sprite.play(ch.sheets.talking.key, true);
+            } else {
+                sprite.play(ch.sheets.idle.key, true);
+            }
+        }
+
+        function update(time) {
+            if (time - lastFetch > FETCH_INTERVAL) { fetchStatus(); lastFetch = time; }
+            if (time - lastBubble > BUBBLE_INTERVAL) { showBubble(); lastBubble = time; }
+            if (loadingDone) {
+                if (typewriterIndex < typewriterTarget.length && time - lastTypewriter > TYPEWRITER_DELAY) {
+                    typewriterText += typewriterTarget[typewriterIndex];
+                    statusText.textContent = typewriterText;
+                    typewriterIndex++;
+                    lastTypewriter = time;
+                }
+            }
+            moveSprite(time);
+        }
+
+        function normalizeState(s) {
+            if (!s) return 'idle';
+            if (s === 'working') return 'writing';
+            if (s === 'run' || s === 'running') return 'executing';
+            if (s === 'sync') return 'syncing';
+            if (s === 'research') return 'researching';
+            return s;
+        }
+
+        function fetchStatus() {
+            fetch('/status')
+                .then(r => r.json())
+                .then(data => {
+                    loadingDone = true;
+                    const nextState = normalizeState(data.state);
+                    const stateInfo = STATES[nextState] || STATES.idle;
+                    const changed = nextState !== currentState;
+                    currentState = nextState;
+                    let detail = (data.detail || '').trim();
+                    if (detail === '等待任务中...' || detail === '待命中...' || detail === '待命中') detail = 'Waiting for tasks…';
+                    const stateLabel = (stateInfo.label != null) ? stateInfo.label : stateInfo.name;
+                    const nextLine = '[' + stateLabel + '] ' + (detail || '...');
+                    if (changed) {
+                        typewriterTarget = nextLine;
+                        typewriterText = '';
+                        typewriterIndex = 0;
+                        const tgt = areas[stateInfo.area] || areas.breakroom;
+                        const dest = clampToWalkable(tgt.x + (Math.random() - 0.5) * 40, tgt.y + (Math.random() - 0.5) * 20);
+                        waypoints = buildPath(sprite.x, sprite.y, dest.x, dest.y);
+                        wpIndex = 0;
+                        playAnim();
+                    } else if (!typewriterTarget || typewriterTarget !== nextLine) {
+                        typewriterTarget = nextLine;
+                        typewriterText = '';
+                        typewriterIndex = 0;
+                    }
+                })
+                .catch(() => {
+                    typewriterTarget = 'Connection failed, retrying…';
+                    typewriterText = '';
+                    typewriterIndex = 0;
+                });
+        }
+
+        function moveSprite(time) {
+            if (!waypoints.length) {
+                if (isMoving) { isMoving = false; playAnim(); }
+                const stateInfo = STATES[currentState] || STATES.idle;
+                const base = areas[stateInfo.area] || areas.breakroom;
+                if (Math.random() < 0.004) {
+                    const dest = clampToWalkable(base.x + (Math.random() - 0.5) * 50, base.y + (Math.random() - 0.5) * 30);
+                    waypoints = buildPath(sprite.x, sprite.y, dest.x, dest.y);
+                    wpIndex = 0;
+                }
+                return;
+            }
+            if (!isMoving) { isMoving = true; playAnim(); }
+            const wp = waypoints[wpIndex];
+            if (!wp) return;
+            const ch = CHARACTERS[currentChar];
+            const speed = (ch && ch.moveSpeed) || 1.8;
+            const dx = wp.x - sprite.x, dy = wp.y - sprite.y;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                sprite.x += Math.sign(dx) * Math.min(Math.abs(dx), speed);
+                sprite.y += Math.sign(dy) * Math.min(Math.abs(dy), speed);
+                sprite.setFlipX(dx < 0);
+            } else {
+                sprite.x = wp.x;
+                sprite.y = wp.y;
+                wpIndex++;
+                if (wpIndex >= waypoints.length) waypoints = [];
+            }
+        }
+
+        function showOneOffBubble(text, ms) {
+            if (bubble) { bubble.destroy(); bubble = null; }
+            const bubbleY = sprite.y - 160;
+            const bg = game.add.rectangle(sprite.x, bubbleY, text.length * 9 + 24, 26, 0xffffff, 0.95);
+            bg.setStrokeStyle(2, 0x000000);
+            const txt = game.add.text(sprite.x, bubbleY, text, { font: '12px monospace', fill: '#000', align: 'center' }).setOrigin(0.5);
+            bubble = game.add.container(0, 0, [bg, txt]);
+            bubble.setDepth(100);
+            setTimeout(() => { if (bubble) { bubble.destroy(); bubble = null; } }, ms || 2000);
+        }
+        function showBubble() {
+            if (bubble) { bubble.destroy(); bubble = null; }
+            const source = CHARACTERS[currentChar]?.bubbleTexts || BUBBLE_TEXTS;
+            const texts = source[currentState] || source.idle || BUBBLE_TEXTS.idle;
+            const text = texts[Math.floor(Math.random() * texts.length)];
+            const bubbleY = sprite.y - 145;
+            const bg = game.add.rectangle(sprite.x, bubbleY, text.length * 9 + 24, 26, 0xffffff, 0.95);
+            bg.setStrokeStyle(2, 0x000000);
+            const txt = game.add.text(sprite.x, bubbleY, text, { font: '12px monospace', fill: '#000', align: 'center' }).setOrigin(0.5);
+            bubble = game.add.container(0, 0, [bg, txt]);
+            bubble.setDepth(100);
+            setTimeout(() => { if (bubble) { bubble.destroy(); bubble = null; } }, 3000);
+        }
+
+        const LOFI_STREAMS = [
+            'https://play.streamafrica.net/lofiradio',
+            'https://streams.fluxfm.de/Chillhop/mp3-320/audio/',
+            'https://stream.zeno.fm/f3wvbbqmdg8uv',
+        ];
+        let lofiAudio = null, lofiPlaying = false, lofiIdx = 0;
+        const musicBtn = document.getElementById('music-btn');
+
+        function startLofi() {
+            lofiAudio = new Audio(LOFI_STREAMS[lofiIdx]);
+            lofiAudio.crossOrigin = 'anonymous';
+            lofiAudio.volume = 0.4;
+            lofiAudio.addEventListener('error', () => {
+                lofiIdx = (lofiIdx + 1) % LOFI_STREAMS.length;
+                if (lofiPlaying) { lofiAudio.src = LOFI_STREAMS[lofiIdx]; lofiAudio.play().catch(() => {}); }
+            });
+            lofiAudio.play().catch(() => {});
+            lofiPlaying = true;
+            if (musicBtn) musicBtn.title = 'Lofi on';
+            musicBtn.textContent = '♫ ■';
+        }
+
+        musicBtn.addEventListener('click', () => {
+            if (lofiPlaying) {
+                if (lofiAudio) { lofiAudio.pause(); lofiAudio.src = ''; lofiAudio = null; }
+                lofiPlaying = false;
+                musicBtn.textContent = '♫';
+                musicBtn.title = 'Tune in';
+            } else {
+                startLofi();
+            }
+        });
+
+        new Phaser.Game(config);
+    </script>
+</body>
+</html>
