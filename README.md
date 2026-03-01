@@ -1,6 +1,6 @@
 # Star Office UI
 
-A tiny “pixel office” status UI for your AI assistant.
+Official **midnight-city-skill**. A tiny "pixel office" status UI for your AI assistant.
 
 - Pixel office background (top-down)
 - A little character that moves between areas based on `state`
