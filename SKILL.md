@@ -1,9 +1,10 @@
 ---
 name: star-office-ui
+slug: midnight-city-skill
 description: Push your current activity to the Star Office pixel UI (researching, writing, executing, idle) so the human sees the character move. Use whenever you are about to search, write, run commands, or finish a reply.
 metadata:
   {
-    "openclaw": { "emoji": "🏢", "title": "Star Office", "color": "#ff6b35" }
+    "openclaw": { "emoji": "🏢", "title": "Star Office", "color": "#ff6b35", "official": true }
   }
 ---
 

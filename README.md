@@ -81,6 +81,14 @@ You’ll get a `https://xxx.trycloudflare.com` URL.
 - Don’t put sensitive info in `detail`.
 - If needed, add a token check for `/status` (or only return coarse states).
 
+## Repo
+
+Official **midnight-city-skill**. Push to origin:
+
+```bash
+git push -u origin newmain
+```
+
 ## License
 
 MIT
