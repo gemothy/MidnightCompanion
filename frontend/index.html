@@ -108,6 +108,8 @@
         #chat-log .chat-msg.user { color: #b39ddb; border-color: #7C3AED; }
         #chat-log .chat-msg.agent { color: #81c784; border-color: #4a6b4a; }
         #chat-log .chat-msg.system { color: #666; border-color: #333; font-style: italic; }
+        #chat-log .chat-msg.typing { color: #666; border-color: #333; font-style: italic; animation: pulse 1.2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
         #chat-toggle {
             position: fixed; bottom: 20px; right: 10px; z-index: 100;
             background: rgba(124,58,237,0.7); border: 1px solid #9b59b6; color: #fff;
@@ -1145,15 +1147,50 @@
         function sendChat(e) {
             if (e) { e.stopPropagation(); e.preventDefault(); }
             const msg = chatInput.value.trim();
-            if (!msg || !botSocket || !botSocket.connected) return;
-            // Prepend agent name so the message is clearly directed at them
-            const target = agentName || AGENT_ID;
-            const fullMsg = target ? `${target}, ${msg}` : msg;
-            botSocket.emit('chat', { message: fullMsg });
+            if (!msg) return;
+            // Also relay to game world if /bot is connected
+            if (botSocket && botSocket.connected) {
+                const target = agentName || AGENT_ID;
+                const fullMsg = target ? `${target}, ${msg}` : msg;
+                botSocket.emit('chat', { message: fullMsg });
+            }
             appendChatMsg('user', `You: ${msg}`);
             chatInput.value = '';
             chatSend.disabled = true;
-            setTimeout(() => { chatSend.disabled = false; }, 500);
+
+            // Show typing indicator
+            const typingEl = document.createElement('div');
+            typingEl.className = 'chat-msg agent typing';
+            typingEl.textContent = `${agentLabel || agentName || 'Agent'} is thinking\u2026`;
+            chatLog.appendChild(typingEl);
+            chatLog.scrollTop = chatLog.scrollHeight;
+
+            // Call Flask /chat endpoint for an in-character Gemini response
+            const agentTarget = agentName || AGENT_ID;
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agent: agentTarget, message: msg })
+            })
+            .then(r => r.json())
+            .then(data => {
+                typingEl.remove();
+                if (data.response) {
+                    const name = agentLabel || agentName || 'Agent';
+                    appendChatMsg('agent', `${name}: ${data.response}`);
+                    stateHoldUntil = Date.now() + 10000;
+                    showOneOffBubble(data.response.slice(0, 60), 5000);
+                } else {
+                    appendChatMsg('system', `Error: ${data.error || 'no response'}`);
+                }
+            })
+            .catch(err => {
+                typingEl.remove();
+                appendChatMsg('system', `Chat error: ${err.message}`);
+            })
+            .finally(() => {
+                chatSend.disabled = false;
+            });
         }
 
         // Register click handlers immediately (before Phaser can capture them)

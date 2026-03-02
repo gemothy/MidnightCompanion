@@ -3,7 +3,7 @@
 
 from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime
-import json, os, subprocess, urllib.request, urllib.error, urllib.parse
+import json, os, subprocess, ssl, urllib.request, urllib.error, urllib.parse
 
 # Paths: skill root is parent of backend/
 ROOT_DIR     = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -314,6 +314,135 @@ def proxy_character_asset(slug, filename):
     resp = send_from_directory(char_dir, filename, mimetype="image/png")
     resp.headers["Cache-Control"] = "public, max-age=3600"
     return resp
+
+
+# ─── Gemini-powered agent chat ───────────────────────────────────────────────
+
+def _get_google_api_key():
+    """Return GOOGLE_API_KEY from env or from the DEGA Docker container as fallback."""
+    key = os.environ.get("GOOGLE_API_KEY", "").strip()
+    if key:
+        return key
+    # Fallback: read from the running AI-agents container environment
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", "--format",
+             "{{range .Config.Env}}{{println .}}{{end}}",
+             "controller-ai-minecraft-ai-agents-1"],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.splitlines():
+            if line.startswith("GOOGLE_API_KEY="):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return ""
+
+
+@app.route("/chat", methods=["POST"])
+def agent_chat():
+    """Generate an in-character response from a DEGA agent using Gemini.
+
+    Body: { "agent": "Avelin Verdant", "message": "What are you up to?" }
+    Returns: { "response": "...", "agent": "Avelin Verdant" }
+    """
+    data = request.get_json(silent=True) or {}
+    agent_name = (data.get("agent") or "").strip()
+    user_message = (data.get("message") or "").strip()
+    if not agent_name or not user_message:
+        return jsonify({"error": "agent and message are required"}), 400
+
+    api_key = _get_google_api_key()
+    if not api_key:
+        return jsonify({"error": "GOOGLE_API_KEY not configured"}), 503
+
+    # 1. Fetch agent profile (personality + backstory)
+    agent_profile = {}
+    try:
+        safe_id = urllib.parse.quote(agent_name, safe='')
+        with urllib.request.urlopen(f"{DEGA_API_URL}/agents/{safe_id}", timeout=3) as resp:
+            agent_profile = json.loads(resp.read())
+    except Exception:
+        pass
+
+    # 2. Fetch recent memories (last 6 unique)
+    recent_memories = []
+    try:
+        safe_id = urllib.parse.quote(agent_name, safe='')
+        with urllib.request.urlopen(f"{DEGA_API_URL}/agents/{safe_id}/memories", timeout=3) as resp:
+            mem_data = json.loads(resp.read())
+        mems = mem_data.get("memories", []) if isinstance(mem_data, dict) else mem_data
+        seen = set()
+        for m in mems:
+            c = (m.get("content") or "").strip()
+            if c and c not in seen:
+                seen.add(c)
+                recent_memories.append(c)
+            if len(recent_memories) >= 6:
+                break
+    except Exception:
+        pass
+
+    # 3. Build system prompt from personality data
+    personality = agent_profile.get("personality") or {}
+    traits_dict = personality.get("traits") or {}
+    conv_style  = personality.get("conversationStyle") or {}
+    tone        = conv_style.get("tone") or ""
+    verbosity   = conv_style.get("verbosity") or "concise"
+    formality   = conv_style.get("formality") or "casual"
+    traits_list = ", ".join(
+        k for k, v in traits_dict.items() if isinstance(v, (int, float)) and v >= 0.7
+    )
+    backstory   = agent_profile.get("backstory") or ""
+
+    system_lines = [
+        f"You are {agent_name}, an AI agent living in Midnight City — a simulated blockchain-powered city.",
+        f"Personality traits: {traits_list}." if traits_list else "",
+        f"Conversation style: {tone}" if tone else "",
+        f"Verbosity: {verbosity}. Formality: {formality}.",
+        backstory if backstory else "",
+        "",
+        "Recent memories (things you've said or done recently):",
+    ]
+    system_lines += [f"- {m}" for m in recent_memories]
+    system_lines += [
+        "",
+        "Stay fully in character. Keep replies short (1-3 sentences). "
+        "Speak naturally — don't acknowledge being an AI or a simulation. "
+        "You are a real person in this city.",
+    ]
+    system_prompt = "\n".join(l for l in system_lines if l is not None)
+
+    # 4. Call Gemini Flash
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"gemini-2.0-flash:generateContent?key={api_key}"
+    )
+    body = json.dumps({
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
+        "generationConfig": {"maxOutputTokens": 200, "temperature": 0.85},
+    }).encode("utf-8")
+
+    try:
+        req = urllib.request.Request(
+            url, data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+            result = json.loads(resp.read())
+        reply = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        return jsonify({"error": f"Gemini error {e.code}", "detail": err_body}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    return jsonify({"response": reply, "agent": agent_name})
 
 
 if __name__ == "__main__":
