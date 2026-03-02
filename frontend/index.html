@@ -164,12 +164,12 @@
                 font-size: 11px; line-height: 1.7; padding: 8px 10px; min-width: 115px;
             }
 
-            /* ── Event log: bottom-right, constrained width ── */
+            /* ── Event log: compact notification pills, bottom-right ── */
             #event-log {
-                bottom: 90px; right: 10px;
-                font-size: 9px; width: 155px; padding: 5px 7px;
+                bottom: 58px; right: 10px;
+                font-size: 9px; width: 100px; padding: 4px 6px;
             }
-            #event-log .ev { font-size: 9px; }
+            #event-log .ev { font-size: 9px; max-width: 88px; }
 
             /* ── Event detail popup: full-width-ish on mobile ── */
             #event-detail {
@@ -835,10 +835,14 @@
             if (!el) return;
             eventEntries.unshift({ icon, text, raw });
             if (eventEntries.length > 5) eventEntries.pop();
+            const mobile = window.innerWidth <= 700;
+            const maxRows = mobile ? 3 : 5;
+            const maxLen  = mobile ? 16 : 35;
             el.style.display = 'block';
-            el.innerHTML = eventEntries.map((e, i) =>
-                `<div class="ev" data-idx="${i}">${e.icon} ${e.text}</div>`
-            ).join('');
+            el.innerHTML = eventEntries.slice(0, maxRows).map((e, i) => {
+                const label = e.text.length > maxLen ? e.text.slice(0, maxLen) + '…' : e.text;
+                return `<div class="ev" data-idx="${i}">${e.icon} ${label}</div>`;
+            }).join('');
         }
 
         function showEventDetail(entry) {
