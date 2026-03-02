@@ -236,8 +236,9 @@
     <script>
         // ─── URL params & DEGA config ────────────────────────────────────────────
         const urlParams = new URLSearchParams(location.search);
-        const DEGA_BASE   = urlParams.get('dega')    || 'http://localhost:8080';
-        const DEGA_WS     = urlParams.get('ws')      || 'http://localhost:4000'; // Socket.IO game server (separate port)
+        const _host     = window.location.hostname; // auto-resolves to LAN IP when accessed from phone
+        const DEGA_BASE   = urlParams.get('dega')    || `http://${_host}:8080`;
+        const DEGA_WS     = urlParams.get('ws')      || `http://${_host}:4000`; // Socket.IO game server (separate port)
         const AGENT_ID    = urlParams.get('agentId') || null;
         let   agentName   = null; // resolved from DEGA profile
         let   agentLabel  = null; // display name shown in badge
@@ -905,8 +906,8 @@
                 const val = sel.value;
                 if (!val) return;
                 const params = new URLSearchParams({ agentId: val });
-                if (DEGA_BASE !== 'http://localhost:8080') params.set('dega', DEGA_BASE);
-                if (DEGA_WS  !== 'http://localhost:4000')  params.set('ws', DEGA_WS);
+                if (urlParams.get('dega')) params.set('dega', DEGA_BASE);
+                if (urlParams.get('ws'))   params.set('ws', DEGA_WS);
                 location.href = '/?' + params.toString();
             });
             // If a specific agent is in the URL, show it in the dropdown immediately
