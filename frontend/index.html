@@ -119,29 +119,81 @@
         #chat-toggle.open { bottom: 42px; }
         #chat-toggle:hover { background: rgba(155,89,182,0.9); }
         @media (max-width: 700px) {
+            /* ── Canvas: full-bleed ── */
             #game-container { border: none; width: 100vw; height: 100vh; }
+
+            /* ── Row 1 (top: 10px): agent badge | music btn | char-select ── */
+            #agent-select {
+                top: 10px; left: 10px;
+                font-size: 11px; padding: 6px 10px; max-width: 155px;
+            }
+            #music-btn {
+                top: 10px; right: 86px;
+                font-size: 14px; padding: 5px 9px; min-width: 32px; text-align: center;
+            }
+            #char-select {
+                top: 10px; right: 10px;
+                font-size: 11px; padding: 6px 7px;
+            }
+
+            /* ── Row 2 (top: 48px): status text, full width, wraps at most 2 lines ── */
             #status-text {
-                top: 10px !important; bottom: unset !important;
-                font-size: 11px; padding: 5px 12px; max-width: 70%; width: auto;
+                top: 48px !important; bottom: unset !important;
+                left: 10px !important; right: 10px !important;
+                transform: none !important;
+                font-size: 11px; padding: 4px 10px; max-width: none; width: auto;
+                text-align: center; line-height: 1.4;
             }
+
+            /* ── District tag: below agent badge, hidden on mobile (clutter) ── */
+            #district-tag { display: none !important; }
+
+            /* ── MIDNIGHT.CITY watermark: slim, centered, bottom ── */
             #mobile-logo {
-                display: block; position: fixed; bottom: 12px; left: 50%;
-                transform: translateX(-50%); background: rgba(26,26,46,0.9);
-                padding: 8px 24px; border-radius: 6px; border: 2px solid #444; z-index: 10;
+                display: block; position: fixed; bottom: 14px; left: 50%;
+                transform: translateX(-50%); pointer-events: none;
+                background: rgba(26,26,46,0.8); padding: 5px 18px;
+                border-radius: 6px; border: 1px solid #333; z-index: 10;
             }
-            #mobile-logo img { height: 24px; image-rendering: pixelated; }
-            #char-select { top: 8px; right: 8px; font-size: 10px; padding: 3px 5px; }
-            #music-btn { top: 8px; right: 90px; font-size: 11px; padding: 2px 6px; }
+            #mobile-logo img { height: 18px; image-rendering: pixelated; }
+
+            /* ── Stats panel: bottom-left, above logo ── */
             #stats-panel {
-                bottom: 68px; left: 8px;
-                font-size: 11px; line-height: 1.8; padding: 6px 9px; min-width: 100px;
+                bottom: 58px; left: 10px;
+                font-size: 11px; line-height: 1.7; padding: 8px 10px; min-width: 115px;
             }
+
+            /* ── Event log: bottom-right, constrained width ── */
             #event-log {
-                bottom: 68px; right: 8px;
-                font-size: 10px; width: 170px; padding: 5px 7px;
+                bottom: 58px; right: 10px;
+                font-size: 9px; width: 155px; padding: 5px 7px;
             }
             #event-log .ev { font-size: 9px; }
-            #district-tag { font-size: 10px; }
+
+            /* ── Event detail popup: full-width-ish on mobile ── */
+            #event-detail {
+                left: 12px; right: 12px; width: auto;
+                bottom: 120px;
+            }
+
+            /* ── Chat toggle: above MIDNIGHT.CITY logo when closed,
+                  above chat bar when open ── */
+            #chat-toggle {
+                bottom: 52px; right: 10px;
+                font-size: 12px; padding: 7px 14px; border-radius: 6px;
+            }
+            #chat-toggle.open { bottom: 46px; }
+
+            /* ── Chat bar: safe-area padding for notched phones ── */
+            #chat-bar { padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+
+            /* ── Chat log: taller, bigger text ── */
+            #chat-log { bottom: 46px; max-height: 160px; }
+            #chat-log .chat-msg { font-size: 11px; padding: 5px 9px; }
+
+            /* ── Chat input/send: finger-friendly ── */
+            #chat-input { font-size: 13px; padding: 8px 10px; }
+            #chat-send { font-size: 12px; padding: 8px 14px; }
         }
     </style>
 </head>
