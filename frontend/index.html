@@ -192,8 +192,8 @@
             /* ── Chat bar: safe-area padding for notched phones ── */
             #chat-bar { padding-bottom: max(6px, env(safe-area-inset-bottom)); }
 
-            /* ── Chat log: taller, bigger text ── */
-            #chat-log { bottom: 46px; max-height: 160px; }
+            /* ── Chat log: dark background panel, scrollable ── */
+            #chat-log { bottom: 46px; max-height: 160px; overflow-y: auto; left: 0; right: 0; background: rgba(10,5,25,0.88); border-radius: 10px 10px 0 0; padding: 8px 8px 4px; }
             #chat-log .chat-msg { font-size: 11px; padding: 5px 9px; }
 
             /* ── Chat input/send: finger-friendly ── */
