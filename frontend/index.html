@@ -176,13 +176,17 @@
                 bottom: 120px;
             }
 
-            /* ── Chat toggle: above MIDNIGHT.CITY logo when closed,
-                  above chat bar when open ── */
+            /* ── Chat toggle: centered above MIDNIGHT.CITY logo,
+                  avoids conflict with event-log at right:10px ── */
             #chat-toggle {
-                bottom: 52px; right: 10px;
-                font-size: 12px; padding: 7px 14px; border-radius: 6px;
+                bottom: 52px; right: auto; left: 50%;
+                transform: translateX(-50%);
+                font-size: 12px; padding: 7px 18px; border-radius: 6px;
             }
-            #chat-toggle.open { bottom: 46px; }
+            #chat-toggle.open {
+                bottom: 46px; left: 50%;
+                transform: translateX(-50%);
+            }
 
             /* ── Chat bar: safe-area padding for notched phones ── */
             #chat-bar { padding-bottom: max(6px, env(safe-area-inset-bottom)); }
