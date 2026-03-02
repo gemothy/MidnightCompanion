@@ -75,6 +75,47 @@
         #event-detail .ed-row { margin-bottom: 3px; word-break: break-all; }
         #event-detail .ed-key { color: #9b59b6; margin-right: 4px; }
         #event-detail .ed-empty { color: #666; font-style: italic; }
+        #chat-bar {
+            display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(10,5,25,0.95); border-top: 1px solid #4a2d6b;
+            padding: 6px 10px; gap: 6px; align-items: center; pointer-events: auto;
+        }
+        #chat-bar.visible { display: flex; }
+        #chat-input {
+            flex: 1; background: rgba(30,20,50,0.9); border: 1px solid #4a2d6b; color: #eee;
+            font: 11px 'Courier New', monospace; padding: 6px 10px; border-radius: 4px;
+            outline: none;
+        }
+        #chat-input:focus { border-color: #7C3AED; }
+        #chat-input::placeholder { color: #666; }
+        #chat-send {
+            background: rgba(124,58,237,0.85); border: 1px solid #9b59b6; color: #fff;
+            font: 11px 'Courier New', monospace; padding: 5px 12px; border-radius: 4px;
+            cursor: pointer; white-space: nowrap;
+        }
+        #chat-send:hover { background: rgba(155,89,182,0.95); }
+        #chat-send:disabled { opacity: 0.4; cursor: default; }
+        #chat-log {
+            position: fixed; bottom: 36px; left: 10px; right: 10px; z-index: 99;
+            max-height: 120px; overflow-y: auto; display: none; pointer-events: auto;
+        }
+        #chat-log.visible { display: block; }
+        #chat-log .chat-msg {
+            background: rgba(10,5,25,0.9); border: 1px solid #4a2d6b;
+            font: 10px 'Courier New', monospace; padding: 4px 8px; border-radius: 4px;
+            margin-bottom: 3px; word-break: break-word;
+        }
+        #chat-log .chat-msg.user { color: #b39ddb; border-color: #7C3AED; }
+        #chat-log .chat-msg.agent { color: #81c784; border-color: #4a6b4a; }
+        #chat-log .chat-msg.system { color: #666; border-color: #333; font-style: italic; }
+        #chat-toggle {
+            position: fixed; bottom: 20px; right: 10px; z-index: 100;
+            background: rgba(124,58,237,0.7); border: 1px solid #9b59b6; color: #fff;
+            font: 10px 'Courier New', monospace; padding: 3px 10px; border-radius: 4px;
+            cursor: pointer; display: none; pointer-events: auto;
+        }
+        #chat-toggle.open { bottom: 42px; }
+        #chat-toggle:hover { background: rgba(155,89,182,0.9); }
         @media (max-width: 700px) {
             #game-container { border: none; width: 100vw; height: 100vh; }
             #status-text {
@@ -114,6 +155,12 @@
     <div id="stats-panel"></div>
     <div id="event-log"></div>
     <div id="event-detail"></div>
+    <div id="chat-log"></div>
+    <div id="chat-bar">
+        <input id="chat-input" type="text" placeholder="Say something…" maxlength="200" autocomplete="off">
+        <button id="chat-send">Send</button>
+    </div>
+    <button id="chat-toggle">💬 Chat</button>
     <select id="char-select" aria-label="Character">
         <option value="loading" aria-label="Default agent">Default</option>
         <option value="burdy" aria-label="RangerBurdy">RangerBurdy</option>
@@ -399,10 +446,17 @@
             }
         }
 
+        // Minimum display time for non-idle states — prevents flickering
+        let stateHoldUntil = 0;
+
         // DEGA events only drive state when Flask hasn't pushed recently
         function setDEGAState(state, detail) {
             if (Date.now() - lastFlaskUpdate < FLASK_PRIORITY_MS) return;
             loadingDone = true;
+            // If transitioning TO idle while a hold is active, skip it
+            if (state === 'idle' && Date.now() < stateHoldUntil) return;
+            // Non-idle states get a minimum hold so the UI doesn't flicker
+            if (state !== 'idle') stateHoldUntil = Date.now() + 6000;
             applyState(state, detail);
         }
 
@@ -513,7 +567,7 @@
 
             // Populate agent selector (always), then connect DEGA + start Flask polling
             loadAgentList();
-            initDEGA().then(() => fetchStatus());
+            initDEGA().then(() => { fetchStatus(); initChat(); });
 
             // Event log click → detail popup
             document.getElementById('event-log').addEventListener('click', e => {
@@ -986,15 +1040,21 @@
                 const truncated = (message || '').slice(0, 60);
                 showOneOffBubble(truncated, 4500);
                 const withWho = receiver ? `Talking with ${receiver}\u2026` : 'In conversation\u2026';
+                stateHoldUntil = Date.now() + 10000; // hold chat state for 10s
                 setDEGAState('researching', withWho);
                 const to = receiver ? ` \u2192 ${receiver}` : '';
                 pushEvent('\uD83D\uDCAC', truncated.slice(0, 35) + to, { from: sender, to: receiver || null, message });
+                // Also show in chat log
+                if (chatLog && sender) {
+                    appendChatMsg('agent', `${sender}: ${message || ''}`);
+                }
             });
 
             // Agent walking toward a target — set phrase once, position events won't overwrite
             socket.on('game:walkingState', ({ username, target }) => {
                 if (agentName && username !== agentName) return;
                 const dest = typeof target === 'string' ? target : (target?.district || 'destination');
+                stateHoldUntil = Date.now() + 12000; // hold walking state for 12s
                 setDEGAState('executing', `${randomMovePrefix()} ${dest}\u2026`);
                 setDistrict(dest);
                 pushEvent('\uD83D\uDEB6', `Heading to ${dest}`, { destination: dest, agent: username });
@@ -1015,22 +1075,22 @@
                 setDEGAState('executing', `Arrived \u2014 ${target || 'destination'}`);
                 setDistrict(target);
                 pushEvent('\uD83D\uDCCD', `Arrived: ${target || 'destination'}`, { location: target, agent: username });
-                setTimeout(() => setDEGAState('idle', randomIdlePhrase()), 3000);
+                stateHoldUntil = Date.now() + 8000; // hold "arrived" for 8s
             });
 
-            // Position update — manage idle timer only, don't overwrite status text
-            let positionIdleTimer = null;
+            // Position update — just track that agent is alive, don't force idle.
+            // Agents do random 1-tile walks constantly; forcing idle here makes the
+            // UI flicker and never lets meaningful states display properly.
             socket.on('game:position', ({ username }) => {
                 if (agentName && username !== agentName) return;
-                clearTimeout(positionIdleTimer);
-                positionIdleTimer = setTimeout(() => setDEGAState('idle', randomIdlePhrase()), 5000);
+                // no-op — state is driven by walkingState / waitingState / chat events
             });
 
-            // Movement ended — short delay then idle
+            // Movement ended — don't force idle here either. The agent's cognitive
+            // loop will emit waitingState(idle) when it truly returns to idle.
             socket.on('game:movementEnded', ({ username }) => {
                 if (agentName && username !== agentName) return;
-                clearTimeout(positionIdleTimer);
-                positionIdleTimer = setTimeout(() => setDEGAState('idle', randomIdlePhrase()), 1500);
+                // no-op
             });
 
             // Blockchain / MCP transaction — real fields: username, operation, params
@@ -1051,6 +1111,99 @@
                     pushEvent('\uD83C\uDF06', stageName, { stage: stageName });
                 }
             });
+        }
+
+        // ─── Chat system ──────────────────────────────────────────────────────────
+        let botSocket = null;
+        let chatOpen = false;
+        const chatBar    = document.getElementById('chat-bar');
+        const chatInput  = document.getElementById('chat-input');
+        const chatSend   = document.getElementById('chat-send');
+        const chatLog    = document.getElementById('chat-log');
+        const chatToggle = document.getElementById('chat-toggle');
+
+        function appendChatMsg(cls, text) {
+            const el = document.createElement('div');
+            el.className = 'chat-msg ' + cls;
+            el.textContent = text;
+            chatLog.appendChild(el);
+            chatLog.scrollTop = chatLog.scrollHeight;
+            // Cap at 50 messages
+            while (chatLog.children.length > 50) chatLog.removeChild(chatLog.firstChild);
+        }
+
+        function toggleChat(e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            chatOpen = !chatOpen;
+            chatBar.classList.toggle('visible', chatOpen);
+            chatLog.classList.toggle('visible', chatOpen);
+            chatToggle.classList.toggle('open', chatOpen);
+            chatToggle.textContent = chatOpen ? '\u2715 Close' : '\uD83D\uDCAC Chat';
+            if (chatOpen) setTimeout(() => chatInput.focus(), 50);
+        }
+
+        function sendChat(e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            const msg = chatInput.value.trim();
+            if (!msg || !botSocket || !botSocket.connected) return;
+            // Prepend agent name so the message is clearly directed at them
+            const target = agentName || AGENT_ID;
+            const fullMsg = target ? `${target}, ${msg}` : msg;
+            botSocket.emit('chat', { message: fullMsg });
+            appendChatMsg('user', `You: ${msg}`);
+            chatInput.value = '';
+            chatSend.disabled = true;
+            setTimeout(() => { chatSend.disabled = false; }, 500);
+        }
+
+        // Register click handlers immediately (before Phaser can capture them)
+        chatToggle.addEventListener('click', toggleChat, true);
+        chatSend.addEventListener('click', sendChat, true);
+        chatInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') sendChat(e);
+        }, true);
+        // Prevent Phaser from stealing focus/clicks on chat elements
+        chatBar.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
+        chatBar.addEventListener('mousedown', (e) => e.stopPropagation(), true);
+        chatLog.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
+        chatToggle.addEventListener('pointerdown', (e) => e.stopPropagation(), true);
+        chatToggle.addEventListener('mousedown', (e) => e.stopPropagation(), true);
+
+        function initChat() {
+            if (!AGENT_ID) return; // Only show chat in DEGA mode
+            chatToggle.style.display = 'block';
+
+            // Connect to game server's /bot namespace as Companion
+            botSocket = io(DEGA_WS + '/bot', {
+                path: '/io',
+                transports: ['websocket'],
+                reconnectionDelay: 2000,
+                reconnectionDelayMax: 10000
+            });
+
+            botSocket.on('connect', () => {
+                console.log('[Chat] Connected to /bot, logging in as Companion…');
+                botSocket.emit('login', { username: 'Companion' });
+            });
+
+            botSocket.on('welcome', () => {
+                const target = agentLabel || agentName || 'the agent';
+                appendChatMsg('system', `Talking to ${target}`);
+                chatInput.placeholder = `Message ${target}\u2026`;
+            });
+
+            botSocket.on('disconnect', () => {
+                console.log('[Chat] Disconnected from /bot');
+                appendChatMsg('agent', 'Disconnected');
+            });
+
+            botSocket.on('error', (err) => {
+                console.warn('[Chat] Error:', err);
+            });
+
+            // Listen for agent chat responses on the viewer socket too
+            // (the viewer socket already receives game:chat events)
         }
 
         // ─── Lofi radio ──────────────────────────────────────────────────────────
