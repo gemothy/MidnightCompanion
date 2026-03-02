@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Midnight.City Companion</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        #game-container { border: 4px solid #7C3AED; image-rendering: pixelated; }
+        #mobile-logo { display: none; }
+        #status-text {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            color: #eee; font-size: 14px; background: rgba(0,0,0,0.7);
+            padding: 10px 20px; border-radius: 4px; max-width: 90%; text-align: center; z-index: 10;
+        }
+        #char-select {
+            position: fixed; top: 10px; right: 10px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 1px solid #555; color: #eee;
+            font: 11px 'Courier New', monospace; padding: 4px 6px; border-radius: 4px;
+            cursor: pointer; -webkit-appearance: none; appearance: none;
+        }
+        #char-select option { background: #1a1a2e; }
+        #music-btn {
+            position: fixed; top: 10px; right: 120px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 1px solid #555; color: #eee;
+            font: 13px monospace; padding: 3px 8px; border-radius: 4px;
+            cursor: pointer; line-height: 1;
+        }
+        #music-btn:hover { background: rgba(60,30,80,0.8); }
+        #agent-select {
+            position: fixed; top: 10px; left: 10px; z-index: 20;
+            background: rgba(124,58,237,0.85); border: 1px solid #9b59b6; color: #fff;
+            font: 10px 'Courier New', monospace; padding: 3px 8px; border-radius: 4px;
+            cursor: pointer; -webkit-appearance: none; appearance: none; max-width: 180px;
+        }
+        #agent-select option { background: #1a1a2e; color: #eee; }
+        #district-tag {
+            display: none; position: fixed; top: 34px; left: 10px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 1px solid #4a2d6b; color: #b39ddb;
+            font: 9px 'Courier New', monospace; padding: 2px 8px; border-radius: 4px;
+        }
+        #stats-panel {
+            display: none; position: fixed; bottom: 20px; left: 10px; z-index: 20;
+            background: rgba(0,0,0,0.75); border: 1px solid #4a2d6b; color: #ccc;
+            font: 10px 'Courier New', monospace; padding: 8px 10px; border-radius: 4px;
+            line-height: 1.9; min-width: 110px;
+        }
+        #event-log {
+            display: none; position: fixed; bottom: 20px; right: 10px; z-index: 20;
+            background: rgba(0,0,0,0.75); border: 1px solid #4a2d6b; color: #aaa;
+            font: 9px 'Courier New', monospace; padding: 6px 8px; border-radius: 4px;
+            width: 210px; overflow: hidden;
+        }
+        #event-log .ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; cursor: pointer; }
+        #event-log .ev:hover { color: #fff; }
+        #event-detail {
+            display: none; position: fixed; bottom: 110px; right: 10px; z-index: 30;
+            background: rgba(10,5,25,0.97); border: 1px solid #7C3AED; color: #ddd;
+            font: 10px 'Courier New', monospace; padding: 10px 12px; border-radius: 6px;
+            width: 230px; max-height: 180px; overflow-y: auto;
+            box-shadow: 0 0 16px rgba(124,58,237,0.35);
+        }
+        #event-detail .ed-title { font-size: 11px; color: #fff; margin-bottom: 8px; display: flex; justify-content: space-between; }
+        #event-detail .ed-close { cursor: pointer; color: #9b59b6; font-size: 12px; }
+        #event-detail .ed-close:hover { color: #fff; }
+        #event-detail .ed-row { margin-bottom: 3px; word-break: break-all; }
+        #event-detail .ed-key { color: #9b59b6; margin-right: 4px; }
+        #event-detail .ed-empty { color: #666; font-style: italic; }
+        @media (max-width: 700px) {
+            #game-container { border: none; width: 100vw; height: 100vh; }
+            #status-text {
+                top: 10px !important; bottom: unset !important;
+                font-size: 11px; padding: 5px 12px; max-width: 70%; width: auto;
+            }
+            #mobile-logo {
+                display: block; position: fixed; bottom: 12px; left: 50%;
+                transform: translateX(-50%); background: rgba(26,26,46,0.9);
+                padding: 8px 24px; border-radius: 6px; border: 2px solid #444; z-index: 10;
+            }
+            #mobile-logo img { height: 24px; image-rendering: pixelated; }
+            #char-select { top: 8px; right: 8px; font-size: 10px; padding: 3px 5px; }
+            #music-btn { top: 8px; right: 90px; font-size: 11px; padding: 2px 6px; }
+            #stats-panel {
+                bottom: 68px; left: 8px;
+                font-size: 11px; line-height: 1.8; padding: 6px 9px; min-width: 100px;
+            }
+            #event-log {
+                bottom: 68px; right: 8px;
+                font-size: 10px; width: 170px; padding: 5px 7px;
+            }
+            #event-log .ev { font-size: 9px; }
+            #district-tag { font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="status-text">Loading…</div>
+    <div id="mobile-logo"><img src="/static/midnight-city-logo.png" alt=""></div>
+    <button id="music-btn" title="Tune in">♫</button>
+    <select id="agent-select" aria-label="DEGA Agent">
+        <option value="">🌃 Agent…</option>
+    </select>
+    <div id="district-tag"></div>
+    <div id="stats-panel"></div>
+    <div id="event-log"></div>
+    <div id="event-detail"></div>
+    <select id="char-select" aria-label="Character">
+        <option value="loading" aria-label="Default agent">Default</option>
+        <option value="burdy" aria-label="RangerBurdy">RangerBurdy</option>
+        <option value="chad" aria-label="Chad">Chad</option>
+        <option value="mccharles" aria-label="McCharles">McCharles</option>
+        <option value="mcchad" aria-label="McChad">McChad</option>
+        <option value="jj" aria-label="JJ">JJ</option>
+        <option value="josh" aria-label="Josh">Josh</option>
+        <option value="tony" aria-label="Tony">Tony</option>
+    </select>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+        // ─── URL params & DEGA config ────────────────────────────────────────────
+        const urlParams = new URLSearchParams(location.search);
+        const DEGA_BASE   = urlParams.get('dega')    || 'http://localhost:8080';
+        const DEGA_WS     = urlParams.get('ws')      || 'http://localhost:4000'; // Socket.IO game server (separate port)
+        const AGENT_ID    = urlParams.get('agentId') || null;
+        let   agentName   = null; // resolved from DEGA profile
+        let   agentLabel  = null; // display name shown in badge
+        let   lastFlaskUpdate = 0;
+        const FLASK_PRIORITY_MS = 15000; // Flask state wins for 15s after last update
+
+        // ─── Phaser game vars ────────────────────────────────────────────────────
+        const isMobile = window.innerWidth < 700;
+        const config = {
+            type: Phaser.AUTO,
+            width: isMobile ? window.innerWidth : 800,
+            height: isMobile ? window.innerHeight : 600,
+            parent: 'game-container',
+            pixelArt: true,
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+            scene: { preload, create, update },
+            scale: isMobile ? { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH } : {}
+        };
+
+        // ─── Bubble texts ────────────────────────────────────────────────────────
+        const BUBBLE_TEXTS = {
+            idle: ['Chilling…', 'Any new tasks?', 'Coffee is good', 'Stretching'],
+            writing: ['Note to self', 'Fingers tired', 'Double-checking', 'Writing it down'],
+            researching: ['Looking it up', 'Found something', 'Interesting', 'Digging deeper'],
+            executing: ['On it!', 'Easy peasy', 'Almost there', 'Getting it done'],
+            syncing: ['Backing up', 'Safety first', 'Syncing…', 'To the cloud'],
+            error: ['Oops…', 'Something broke', 'Checking…', 'Fixing it']
+        };
+
+        // ─── Characters ──────────────────────────────────────────────────────────
+        const CHARACTERS = {
+            loading: {
+                scale: 0.7, displayName: 'Default',
+                bubbleTexts: BUBBLE_TEXTS,
+                tapPhrases: ['Loading\u2026', 'Almost there\u2026', 'One sec\u2026'],
+                switchPhrase: '',
+                sheets: {
+                    idle:    { key: 'loading_idle', file: 'LoadingSprite.png', fw: 258, fh: 260, end: 35 },
+                    talking: { key: 'loading_idle', file: 'LoadingSprite.png', fw: 258, fh: 260, end: 35 },
+                    walking: null
+                }
+            },
+            burdy: {
+                scale: 0.55, displayName: 'RangerBurdy',
+                bubbleTexts: {
+                    idle: ['Hold your horses', "Keepin\u2019 an eye out", 'All quiet on the range', 'Coffee\u2019s on'],
+                    writing: ['Putting it in writing', 'Ink on the page', 'Taking notes'],
+                    researching: ["Diggin\u2019 for gold", 'Tracking it down', 'Looking into it'],
+                    executing: ["Gettin\u2019 it done", 'On the job', 'Riding out'],
+                    syncing: ['Rounding up', 'Backing up the herd', 'Syncing\u2026'],
+                    error: ['Whoa there', 'Hit a snag', 'Checking the reins']
+                },
+                tapPhrases: ['Howdy.', 'What can I do for ya?', 'At your service.'],
+                switchPhrase: "Howdy, it\u2019s RangerBurdy.",
+                sheets: {
+                    idle:    { key: 'burdy_idle',  file: 'RangerBurdySpriteIdle.png',     fw: 148, fh: 261, end: 35 },
+                    talking: { key: 'burdy_think', file: 'RangerBurdySpriteThinking.png', fw: 143, fh: 258, end: 35 },
+                    walking: { key: 'burdy_walk',  file: 'RangerBurdySpriteWalking.png',  fw: 185, fh: 264, end: 35 }
+                }
+            },
+            chad: {
+                scale: 0.5, displayName: 'Chad',
+                bubbleTexts: {
+                    idle: ['Ready when you are', 'Just vibing', 'What\u2019s the move?', 'All good'],
+                    writing: ['Locking it in', 'Putting it down', 'On the draft'],
+                    researching: ['Checking it out', 'On it', 'Looking into it'],
+                    executing: ['Getting it done', 'Easy.', 'Almost there'],
+                    syncing: ['Backing up', 'Syncing\u2026', 'All set'],
+                    error: ['Oops', 'On it', 'Checking\u2026']
+                },
+                tapPhrases: ['Hey!', 'What\u2019s up?', 'Need something?'],
+                switchPhrase: 'Chad in the house.',
+                sheets: {
+                    idle:    { key: 'chad_idle',  file: 'ChadSpriteIdle.png',     fw: 281, fh: 264, end: 35 },
+                    talking: { key: 'chad_think', file: 'ChadSpriteThinking.png', fw: 281, fh: 264, end: 35 },
+                    walking: { key: 'chad_walk',  file: 'ChadSpriteWalking.png',  fw: 281, fh: 264, end: 35 }
+                }
+            },
+            mccharles: {
+                scale: 0.5, displayName: 'McCharles',
+                bubbleTexts: {
+                    idle: ['On standby', "What\u2019s the move?", 'Ready.', 'Here when you need me'],
+                    writing: ['Writing it up', 'Drafting', 'On the doc'],
+                    researching: ['Looking it up', 'On it', 'Checking\u2026'],
+                    executing: ['On it.', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing\u2026', 'Backing up', 'All set'],
+                    error: ['Checking\u2026', 'On it', 'One sec']
+                },
+                tapPhrases: ['Hey.', 'What\u2019s up?', 'Need something?'],
+                switchPhrase: "McCharles here.",
+                sheets: {
+                    idle:    { key: 'mccharles_idle',  file: 'McCharlesSpriteIdle.png',    fw: 186, fh: 263, end: 35 },
+                    talking: { key: 'mccharles_idle',  file: 'McCharlesSpriteIdle.png',    fw: 186, fh: 263, end: 35 },
+                    walking: { key: 'mccharles_walk',  file: 'McCharlesSpriteWalking.png', fw: 186, fh: 263, end: 35 }
+                }
+            },
+            mcchad: {
+                scale: 0.5, moveSpeed: 2.8, displayName: 'McChad',
+                bubbleTexts: {
+                    idle: ['On standby', "What\u2019s the move?", 'Ready when you are', 'Here.'],
+                    writing: ['Locking it in', 'Drafting', 'On the doc'],
+                    researching: ['On it', 'Looking it up', 'Checking\u2026'],
+                    executing: ['Getting it done', 'On it.', 'Almost there'],
+                    syncing: ['Syncing\u2026', 'Backing up', 'All set'],
+                    error: ['Checking\u2026', 'On it', 'One sec']
+                },
+                tapPhrases: ['Hey!', 'What\u2019s up?', 'Need something?'],
+                switchPhrase: "McChad in the building.",
+                sheets: {
+                    idle:    { key: 'mcchad_idle',  file: 'McChadSpriteIdle.png',    fw: 283, fh: 266, end: 35 },
+                    talking: { key: 'mcchad_talk',  file: 'McChadSpriteTalking.png', fw: 283, fh: 266, end: 35 },
+                    walking: { key: 'mcchad_walk',  file: 'McChadSpriteWalking.png', fw: 283, fh: 266, end: 35 }
+                }
+            },
+            jj: {
+                scale: 0.5, displayName: 'JJ',
+                bubbleTexts: {
+                    idle: ['Chilling\u2026', 'Any new tasks?', 'Ready when you are'],
+                    writing: ['Note to self', 'Writing it down', 'On the draft'],
+                    researching: ['Looking it up', 'Digging deeper', 'On it'],
+                    executing: ['On it!', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing\u2026', 'Backing up', 'All set'],
+                    error: ['Oops\u2026', 'Checking\u2026', 'Fixing it']
+                },
+                tapPhrases: ['Hey!', 'What\u2019s up?', 'Need something?'],
+                switchPhrase: "JJ here.",
+                sheets: {
+                    idle:    { key: 'jj_idle',    file: 'JJSpriteIdle.png',    fw: 172, fh: 268, end: 35 },
+                    talking: { key: 'jj_talking', file: 'JJSpriteTalking.png', fw: 172, fh: 268, end: 35 },
+                    walking: { key: 'jj_walk',    file: 'JJSpriteWalking.png', fw: 172, fh: 268, end: 35 }
+                }
+            },
+            josh: {
+                scale: 0.68, displayName: 'Josh',
+                bubbleTexts: {
+                    idle: ['Chilling\u2026', 'Any new tasks?', 'Ready when you are'],
+                    writing: ['Note to self', 'Writing it down', 'On the draft'],
+                    researching: ['Looking it up', 'Digging deeper', 'On it'],
+                    executing: ['On it!', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing\u2026', 'Backing up', 'All set'],
+                    error: ['Oops\u2026', 'Checking\u2026', 'Fixing it']
+                },
+                tapPhrases: ['Hey!', 'What\u2019s up?', 'Need something?'],
+                switchPhrase: "Josh here.",
+                sheets: {
+                    idle:    { key: 'josh_idle',    file: 'JoshSpriteIdle.png',    fw: 124, fh: 271, end: 35 },
+                    talking: { key: 'josh_talking', file: 'JoshSpriteTalking.png', fw: 124, fh: 271, end: 35 },
+                    walking: { key: 'josh_walk',    file: 'JoshSpriteWalking.png', fw: 124, fh: 271, end: 35 }
+                }
+            },
+            tony: {
+                scale: 0.8, displayName: 'Tony',
+                bubbleTexts: {
+                    idle: ['Chilling\u2026', 'Stay hydrated.', 'Any new tasks?'],
+                    writing: ['Note to self', 'Writing it down', 'On the draft'],
+                    researching: ['Looking it up', 'Digging deeper', 'On it'],
+                    executing: ['On it!', 'Getting it done', 'Almost there'],
+                    syncing: ['Syncing\u2026', 'Backing up', 'All set'],
+                    error: ['Oops\u2026', 'Checking\u2026', 'Fixing it']
+                },
+                tapPhrases: ['Hey!', 'What\u2019s up?', 'Need something?'],
+                switchPhrase: "Tony here.",
+                sheets: {
+                    idle:    { key: 'tony_idle',    file: 'TonySpriteIdle.png',    fw: 273, fh: 232, end: 35 },
+                    talking: { key: 'tony_talking', file: 'TonySpriteTalking.png', fw: 273, fh: 232, end: 35 },
+                    walking: { key: 'tony_walk',    file: 'TonySpriteWalking.png', fw: 273, fh: 232, end: 35 }
+                }
+            }
+        };
+
+        // ─── State definitions ───────────────────────────────────────────────────
+        const STATES = {
+            idle:        { name: 'Idle',        area: 'breakroom', label: 'On break' },
+            writing:     { name: 'Writing',     area: 'workdesk',  label: 'Writing' },
+            researching: { name: 'Researching', area: 'workdesk',  label: 'Looking it up' },
+            executing:   { name: 'Executing',   area: 'workdesk',  label: 'On it' },
+            syncing:     { name: 'Syncing',     area: 'breakroom', label: 'Syncing' },
+            error:       { name: 'Error',       area: 'breakroom', label: 'Something went wrong' }
+        };
+
+        // ─── Runtime state ───────────────────────────────────────────────────────
+        let game, sprite, areas = {}, currentState = 'idle', statusText;
+        let lastFetch = 0, lastBubble = 0, bubble = null, lastTapTime = 0, loadingDone = false;
+        let typewriterText = '', typewriterTarget = '', typewriterIndex = 0, lastTypewriter = 0;
+        let waypoints = [], wpIndex = 0, isMoving = false;
+        let deskGlowGraphics = null, deskGlowTween = null;
+        let currentChar = localStorage.getItem('star-office-char') || 'loading';
+        // DEGA character sprite mode — overrides the built-in character when a DEGA agent is loaded
+        let degaCharMode = false, degaIdleKey = null, degaWalkKey = null;
+        if (currentChar === 'charles') currentChar = 'chad';
+        if (currentChar === 'nyx') currentChar = 'loading';
+
+        const FETCH_INTERVAL = 2000, BUBBLE_INTERVAL = 8000, TYPEWRITER_DELAY = 50;
+        const LOADING_MESSAGES = ['Warming up\u2026', 'Almost there\u2026', 'Grab a coffee\u2026', 'Loading\u2026'];
+
+        // ─── Walkable zones (pixel rectangles) ──────────────────────────────────
+        const WALKABLE = [
+            { x: 150, y: 300, w: 310, h: 180 }, // workdesk zone
+            { x: 530, y: 310, w: 240, h: 170 }, // breakroom zone
+            { x: 150, y: 460, w: 620, h: 90  }, // corridor
+        ];
+
+        function clampToWalkable(x, y) {
+            let best = null, bestDist = Infinity;
+            for (const r of WALKABLE) {
+                const cx = Math.max(r.x, Math.min(r.x + r.w, x));
+                const cy = Math.max(r.y, Math.min(r.y + r.h, y));
+                const d = (cx - x) ** 2 + (cy - y) ** 2;
+                if (d < bestDist) { bestDist = d; best = { x: cx, y: cy }; }
+            }
+            return best || { x, y };
+        }
+
+        function inZone(x, y, z) { return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h; }
+        function getZone(x, y) { return WALKABLE.findIndex(z => inZone(x, y, z)); }
+
+        // BFS-style multi-waypoint path (routes through corridor when crossing zones)
+        function buildPath(fx, fy, tx, ty) {
+            const fromZ = getZone(fx, fy);
+            const toZ   = getZone(tx, ty);
+            if (fromZ === toZ || fromZ < 0 || toZ < 0) return [{ x: tx, y: ty }];
+            const corY = WALKABLE[2].y + 20;
+            return [{ x: fx, y: corY }, { x: tx, y: corY }, { x: tx, y: ty }];
+        }
+
+        // ─── Desk glow (purple pulse when working) ──────────────────────────────
+        function updateDeskGlow(state) {
+            if (!deskGlowGraphics || !game) return;
+            const working = ['writing', 'researching', 'executing'].includes(state);
+            if (deskGlowTween) { deskGlowTween.stop(); deskGlowTween = null; }
+            if (working) {
+                deskGlowGraphics.setAlpha(0.22);
+                deskGlowTween = game.tweens.add({
+                    targets: deskGlowGraphics,
+                    alpha: { from: 0.1, to: 0.3 },
+                    duration: 1400,
+                    yoyo: true, repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            } else {
+                deskGlowGraphics.setAlpha(0);
+            }
+        }
+
+        // ─── Apply state (shared by Flask + DEGA paths) ─────────────────────────
+        function applyState(nextState, detail) {
+            const stateInfo = STATES[nextState] || STATES.idle;
+            const changed   = nextState !== currentState;
+            currentState    = nextState;
+            let d = (detail || '').trim();
+            if (d === '\u7b49\u5f85\u4efb\u52a1\u4e2d...' || d === '\u5f85\u547d\u4e2d...' || d === '\u5f85\u547d\u4e2d') d = 'Waiting for tasks\u2026';
+            const stateLabel = stateInfo.label != null ? stateInfo.label : stateInfo.name;
+            const badge      = agentLabel ? `${agentLabel} \u00B7 ` : '';
+            const nextLine   = badge + (d || stateLabel + '\u2026');
+            if (changed) {
+                typewriterTarget = nextLine; typewriterText = ''; typewriterIndex = 0;
+                const tgt  = areas[stateInfo.area] || areas.breakroom;
+                const dest = clampToWalkable(tgt.x + (Math.random() - 0.5) * 40, tgt.y + (Math.random() - 0.5) * 20);
+                waypoints  = buildPath(sprite.x, sprite.y, dest.x, dest.y);
+                wpIndex    = 0;
+                playAnim();
+                updateDeskGlow(nextState);
+            } else if (!typewriterTarget || typewriterTarget !== nextLine) {
+                typewriterTarget = nextLine; typewriterText = ''; typewriterIndex = 0;
+            }
+        }
+
+        // DEGA events only drive state when Flask hasn't pushed recently
+        function setDEGAState(state, detail) {
+            if (Date.now() - lastFlaskUpdate < FLASK_PRIORITY_MS) return;
+            loadingDone = true;
+            applyState(state, detail);
+        }
+
+        // ─── Phaser lifecycle ────────────────────────────────────────────────────
+        function preload() {
+            this.load.image('office_bg', '/static/office_bg.png');
+            this.load.image('midnight_logo', '/static/midnight-city-logo.png');
+            for (const ch of Object.values(CHARACTERS)) {
+                for (const s of Object.values(ch.sheets)) {
+                    if (s) this.load.spritesheet(s.key, '/static/' + s.file, { frameWidth: s.fw, frameHeight: s.fh });
+                }
+            }
+        }
+
+        function create() {
+            game = this;
+            this.add.image(400, 300, 'office_bg');
+
+            // Desk glow — subtle purple ellipse behind workdesk area
+            deskGlowGraphics = this.add.ellipse(235, 390, 220, 90, 0x9b59b6, 1);
+            deskGlowGraphics.setAlpha(0);
+            deskGlowGraphics.setDepth(3); // above bg, below sprite
+
+            areas = {
+                workdesk:  { x: 220, y: 400 },
+                breakroom: { x: 640, y: 340 },
+                alert:     { x: 640, y: 400 }
+            };
+
+            // Create all animations
+            for (const ch of Object.values(CHARACTERS)) {
+                for (const s of Object.values(ch.sheets)) {
+                    if (!s) continue;
+                    if (!this.anims.exists(s.key)) {
+                        this.anims.create({
+                            key: s.key,
+                            frames: this.anims.generateFrameNumbers(s.key, { start: 0, end: s.end }),
+                            frameRate: s.key.includes('walk') ? 10 : 8,
+                            repeat: -1
+                        });
+                    }
+                }
+            }
+
+            const ch = CHARACTERS[currentChar];
+            sprite = this.physics.add.sprite(640, 360, ch.sheets.idle.key, 0);
+            sprite.setOrigin(0.5, 0.85);
+            sprite.setScale(ch.scale);
+            sprite.setAlpha(1);
+            sprite.setDepth(50);
+            sprite.play(ch.sheets.idle.key);
+            sprite.setInteractive({ useHandCursor: true });
+
+            this.input.on('pointerdown', (ptr) => {
+                if (Date.now() - lastTapTime < 3000) return;
+                const bounds = sprite.getBounds();
+                const wx = ptr.worldX != null ? ptr.worldX : ptr.x;
+                const wy = ptr.worldY != null ? ptr.worldY : ptr.y;
+                if (!bounds.contains(wx, wy)) return;
+                lastTapTime = Date.now();
+                const ch = CHARACTERS[currentChar];
+                const phrases = (ch && ch.tapPhrases) || ['Hi!'];
+                showOneOffBubble(phrases[Math.floor(Math.random() * phrases.length)], 2000);
+            });
+
+            if (!isMobile) {
+                const plaqueBg = this.add.rectangle(400, 570, 380, 44, 0x2a1a3e);
+                plaqueBg.setStrokeStyle(2, 0x6b3a7d);
+                const logo = this.add.image(400, 570, 'midnight_logo');
+                logo.setOrigin(0.5);
+                logo.setDisplaySize(320, 32);
+            }
+
+            if (isMobile) {
+                const cam = this.cameras.main;
+                cam.setBounds(0, 0, 800, 600);
+                cam.setZoom(1.4);
+                cam.startFollow(sprite, true, 0.04, 0.04);
+                cam.setDeadzone(100, 60);
+                let dragStart = null, refollow = null;
+                this.input.on('pointerdown', (p) => {
+                    dragStart = { x: p.x, y: p.y, sx: cam.scrollX, sy: cam.scrollY };
+                    cam.stopFollow();
+                    if (refollow) { clearTimeout(refollow); refollow = null; }
+                });
+                this.input.on('pointermove', (p) => {
+                    if (!dragStart || !p.isDown) return;
+                    cam.scrollX = dragStart.sx - (p.x - dragStart.x) / cam.zoom;
+                    cam.scrollY = dragStart.sy - (p.y - dragStart.y) / cam.zoom;
+                });
+                this.input.on('pointerup', () => {
+                    dragStart = null;
+                    refollow = setTimeout(() => {
+                        cam.startFollow(sprite, true, 0.04, 0.04);
+                        cam.setDeadzone(100, 60);
+                    }, 20000);
+                });
+            }
+
+            statusText = document.getElementById('status-text');
+            let loadingMsgIndex = 0;
+            setInterval(() => {
+                if (!loadingDone && statusText) statusText.textContent = LOADING_MESSAGES[loadingMsgIndex++ % LOADING_MESSAGES.length];
+            }, 1500);
+            const sel = document.getElementById('char-select');
+            sel.value = currentChar;
+            sel.addEventListener('change', () => switchCharacter(sel.value));
+
+            // Populate agent selector (always), then connect DEGA + start Flask polling
+            loadAgentList();
+            initDEGA().then(() => fetchStatus());
+
+            // Event log click → detail popup
+            document.getElementById('event-log').addEventListener('click', e => {
+                const row = e.target.closest('.ev');
+                if (!row) return;
+                const idx = parseInt(row.dataset.idx, 10);
+                const entry = eventEntries[idx];
+                if (entry) showEventDetail(entry);
+            });
+            // Click outside detail popup to close
+            document.addEventListener('click', e => {
+                const detail = document.getElementById('event-detail');
+                if (detail && !detail.contains(e.target) && !e.target.closest('#event-log')) {
+                    detail.style.display = 'none';
+                }
+            });
+        }
+
+        function switchCharacter(name) {
+            // "Default" in DEGA mode = re-apply the agent's sprite, not the loading character
+            if (name === 'loading' && agentName) {
+                if (degaIdleKey) {
+                    // Already loaded — re-enable immediately
+                    degaCharMode = true;
+                    sprite.setTexture(degaIdleKey, 0);
+                    sprite.setScale(5);
+                    sprite.setOrigin(0.5, 0.9);
+                    playAnim();
+                } else {
+                    // Not yet loaded — trigger load
+                    loadDEGACharacter(agentName);
+                }
+                return;
+            }
+            if (!CHARACTERS[name]) return;
+            degaCharMode = false;
+            currentChar = name;
+            localStorage.setItem('star-office-char', name);
+            const ch = CHARACTERS[name];
+            sprite.setTexture(ch.sheets.idle.key, 0);
+            sprite.setScale(ch.scale);
+            sprite.setOrigin(0.5, 0.85);
+            playAnim();
+            const phrase = ch.switchPhrase != null ? ch.switchPhrase : ('Now you\'re ' + (ch.displayName || name) + '!');
+            showOneOffBubble(phrase, 2000);
+        }
+
+        function playAnim() {
+            if (degaCharMode && degaIdleKey) {
+                const walkKey = (isMoving && degaWalkKey) ? degaWalkKey : degaIdleKey;
+                sprite.play(walkKey, true);
+                return;
+            }
+            const ch = CHARACTERS[currentChar];
+            const working = ['writing', 'researching', 'executing'].includes(currentState);
+            if (isMoving && ch.sheets.walking) {
+                sprite.play(ch.sheets.walking.key, true);
+            } else if (working) {
+                sprite.play(ch.sheets.talking.key, true);
+            } else {
+                sprite.play(ch.sheets.idle.key, true);
+            }
+        }
+
+        function update(time) {
+            if (time - lastFetch > FETCH_INTERVAL) { fetchStatus(); lastFetch = time; }
+            if (time - lastBubble > BUBBLE_INTERVAL) { showBubble(); lastBubble = time; }
+            if (loadingDone) {
+                if (typewriterIndex < typewriterTarget.length && time - lastTypewriter > TYPEWRITER_DELAY) {
+                    typewriterText += typewriterTarget[typewriterIndex];
+                    statusText.textContent = typewriterText;
+                    typewriterIndex++;
+                    lastTypewriter = time;
+                }
+            }
+            moveSprite(time);
+            // Keep bubble pinned to sprite
+            if (bubble) {
+                bubble.x = sprite.x;
+                bubble.y = sprite.y - 145;
+            }
+        }
+
+        function normalizeState(s) {
+            if (!s) return 'idle';
+            if (s === 'working') return 'writing';
+            if (s === 'run' || s === 'running') return 'executing';
+            if (s === 'sync') return 'syncing';
+            if (s === 'research') return 'researching';
+            return s;
+        }
+
+        // ─── Flask status polling ────────────────────────────────────────────────
+        // "Default idle" = Flask hasn't had a state pushed by OpenClaw yet.
+        // In DEGA mode we don't let this override live socket events.
+        function isFlaskDefault(data) {
+            const s = (data.state || '').trim();
+            const d = (data.detail || '').trim();
+            return s === 'idle' && (d === '' || d === 'Waiting for tasks\u2026' || d === 'Idle (auto-returned to breakroom)');
+        }
+
+        function fetchStatus() {
+            fetch('/status')
+                .then(r => r.json())
+                .then(data => {
+                    loadingDone = true;
+                    const defaultIdle = isFlaskDefault(data);
+                    // Only claim Flask priority when the skill has actively pushed a state.
+                    // If Flask is just returning its default idle, DEGA events can drive freely.
+                    if (!defaultIdle) lastFlaskUpdate = Date.now();
+                    // In DEGA mode, skip applying the default idle — socket events own that.
+                    if (AGENT_ID && defaultIdle) return;
+                    applyState(normalizeState(data.state), data.detail || '');
+                })
+                .catch(() => {
+                    if (!loadingDone) {
+                        typewriterTarget = 'Waiting for updates\u2026';
+                        typewriterText = ''; typewriterIndex = 0;
+                    }
+                });
+        }
+
+        // ─── Movement ───────────────────────────────────────────────────────────
+        function moveSprite() {
+            // Don't move the loading sprite — it stays put until a character loads
+            if (currentChar === 'loading' && !degaCharMode) return;
+            if (!waypoints.length) {
+                if (isMoving) { isMoving = false; playAnim(); }
+                const stateInfo = STATES[currentState] || STATES.idle;
+                const base = areas[stateInfo.area] || areas.breakroom;
+                if (Math.random() < 0.004) {
+                    const dest = clampToWalkable(base.x + (Math.random() - 0.5) * 50, base.y + (Math.random() - 0.5) * 30);
+                    waypoints = buildPath(sprite.x, sprite.y, dest.x, dest.y);
+                    wpIndex = 0;
+                }
+                return;
+            }
+            if (!isMoving) { isMoving = true; playAnim(); }
+            const wp = waypoints[wpIndex];
+            if (!wp) return;
+            const ch = CHARACTERS[currentChar];
+            const speed = (ch && ch.moveSpeed) || 1.8;
+            const dx = wp.x - sprite.x, dy = wp.y - sprite.y;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                sprite.x += Math.sign(dx) * Math.min(Math.abs(dx), speed);
+                sprite.y += Math.sign(dy) * Math.min(Math.abs(dy), speed);
+                sprite.setFlipX(dx < 0);
+            } else {
+                sprite.x = wp.x; sprite.y = wp.y;
+                wpIndex++;
+                if (wpIndex >= waypoints.length) waypoints = [];
+            }
+        }
+
+        // ─── Bubbles ─────────────────────────────────────────────────────────────
+        function showOneOffBubble(text, ms) {
+            if (bubble) { bubble.destroy(); bubble = null; }
+            if (!game) return;
+            // No bubbles while on the loading sprite (before a character loads)
+            if (currentChar === 'loading' && !degaCharMode) return;
+            const maxLen = 80;
+            const display = text.length > maxLen ? text.slice(0, maxLen) + '\u2026' : text;
+            // Text first so we can measure it for the background size
+            const maxW = isMobile ? 160 : 210;
+            const txt = game.add.text(0, 0, display, {
+                font: '11px monospace', fill: '#1a1a2e',
+                align: 'center', wordWrap: { width: maxW - 24 }
+            }).setOrigin(0.5);
+            const bgW = Math.min(txt.width + 24, maxW);
+            const bgH = txt.height + 14;
+            const bg  = game.add.rectangle(0, 0, bgW, bgH, 0xffffff, 0.95);
+            bg.setStrokeStyle(2, 0x7C3AED);
+            // bg behind txt in container (array order = draw order)
+            bubble = game.add.container(sprite.x, sprite.y - 145, [bg, txt]);
+            bubble.setDepth(100);
+            setTimeout(() => { if (bubble) { bubble.destroy(); bubble = null; } }, ms || 2500);
+        }
+
+        function showBubble() {
+            if (bubble) return; // don't replace DEGA bubbles mid-flight
+            const source = CHARACTERS[currentChar]?.bubbleTexts || BUBBLE_TEXTS;
+            const texts  = source[currentState] || source.idle || BUBBLE_TEXTS.idle;
+            showOneOffBubble(texts[Math.floor(Math.random() * texts.length)], 3000);
+        }
+
+        // ─── Phrase pools ────────────────────────────────────────────────────────
+        const IDLE_PHRASES = [
+            'Taking a breather\u2026', 'Scanning the area\u2026', 'Between tasks\u2026',
+            'Standing by\u2026', 'Hanging back\u2026', 'Catching their breath\u2026',
+            'Looking around\u2026', 'On standby\u2026', 'Waiting for something\u2026',
+        ];
+        const MOVE_PREFIXES = [
+            'En route to', 'Heading to', 'Making way to', 'Walking over to', 'Crossing to',
+        ];
+        function randomIdlePhrase() {
+            return IDLE_PHRASES[Math.floor(Math.random() * IDLE_PHRASES.length)];
+        }
+        function randomMovePrefix() {
+            return MOVE_PREFIXES[Math.floor(Math.random() * MOVE_PREFIXES.length)];
+        }
+
+        // ─── Live event log ──────────────────────────────────────────────────────
+        const eventEntries = [];
+        function pushEvent(icon, text, raw = null) {
+            const el = document.getElementById('event-log');
+            if (!el) return;
+            eventEntries.unshift({ icon, text, raw });
+            if (eventEntries.length > 5) eventEntries.pop();
+            el.style.display = 'block';
+            el.innerHTML = eventEntries.map((e, i) =>
+                `<div class="ev" data-idx="${i}">${e.icon} ${e.text}</div>`
+            ).join('');
+        }
+
+        function showEventDetail(entry) {
+            const el = document.getElementById('event-detail');
+            if (!el) return;
+            const raw = entry.raw || {};
+            let html = `<div class="ed-title">${entry.icon} ${entry.text}<span class="ed-close" onclick="document.getElementById('event-detail').style.display='none'">✕</span></div>`;
+            const rows = Object.entries(raw).filter(([, v]) => v != null);
+            if (rows.length === 0) {
+                html += `<div class="ed-empty">No additional data</div>`;
+            } else {
+                for (const [k, v] of rows) {
+                    const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                    html += `<div class="ed-row"><span class="ed-key">${k}</span> ${val}</div>`;
+                }
+            }
+            el.innerHTML = html;
+            el.style.display = 'block';
+        }
+
+        // ─── District tag ────────────────────────────────────────────────────────
+        function setDistrict(name) {
+            const el = document.getElementById('district-tag');
+            if (!el || !name || name === 'destination') return;
+            el.textContent = `\uD83D\uDCCD ${name}`;
+            el.style.display = 'block';
+        }
+
+        // ─── Agent metrics ───────────────────────────────────────────────────────
+        async function loadAgentMetrics() {
+            if (!AGENT_ID) return;
+            const panel = document.getElementById('stats-panel');
+            if (!panel) return;
+            try {
+                const res  = await fetch(`/dega/agents/${encodeURIComponent(AGENT_ID)}/metrics`);
+                const body = await res.json();
+                const m    = body.metrics || body; // unwrap nested { metrics: {...} }
+                const rawRate = m.successRate ?? m.success_rate ?? null;
+                const rate    = rawRate != null ? Math.round(rawRate > 1 ? rawRate : rawRate * 100) : null;
+                const actions = m.successfulActions != null && m.totalActions != null
+                    ? `${m.successfulActions}/${m.totalActions}`
+                    : (m.successfulActions ?? null);
+                const insights = m.insightsLearned ?? null;
+                let html = '';
+                if (rate     != null) html += `<div>\u2713 ${rate}% success</div>`;
+                if (actions  != null) html += `<div>\u26A1 ${actions} actions</div>`;
+                if (insights != null) html += `<div>\uD83D\uDCA1 ${insights} insights</div>`;
+                if (html) { panel.innerHTML = html; panel.style.display = 'block'; }
+            } catch (e) {
+                console.warn('[DEGA] Metrics fetch failed:', e.message);
+            }
+        }
+
+        // ─── DEGA agent selector ─────────────────────────────────────────────────
+        async function loadAgentList() {
+            const sel = document.getElementById('agent-select');
+            if (!sel) return;
+            // Navigate to selected agent
+            sel.addEventListener('change', () => {
+                const val = sel.value;
+                if (!val) return;
+                const params = new URLSearchParams({ agentId: val });
+                if (DEGA_BASE !== 'http://localhost:8080') params.set('dega', DEGA_BASE);
+                if (DEGA_WS  !== 'http://localhost:4000')  params.set('ws', DEGA_WS);
+                location.href = '/?' + params.toString();
+            });
+            // If a specific agent is in the URL, show it in the dropdown immediately
+            // so the selector isn't empty even when the full agent list API is down
+            if (AGENT_ID) {
+                const cur = document.createElement('option');
+                cur.value = AGENT_ID;
+                cur.textContent = AGENT_ID + ' ●';
+                cur.selected = true;
+                sel.appendChild(cur);
+            }
+            try {
+                // Use game server's live player list — only agents currently in the game
+                const res  = await fetch('/dega/players');
+                const raw  = await res.json();
+                const list = Array.isArray(raw) ? raw : [];
+                if (list.length === 0) throw new Error('empty list');
+                // Got a full list — replace the placeholder entry with the real list
+                while (sel.options.length > 1) sel.remove(1); // keep "🌃 Agent…"
+                for (const a of list) {
+                    const name = a.username || a.name;
+                    if (!name) continue;
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name + ' ●';
+                    if (name === AGENT_ID) opt.selected = true;
+                    sel.appendChild(opt);
+                }
+            } catch (e) {
+                console.warn('[DEGA] Player list fetch failed:', e.message);
+            }
+        }
+
+        // ─── DEGA character sprite loader ────────────────────────────────────────
+        // Derives slug from agent name (e.g. "Anya Bloom" → "anya_bloom"), checks
+        // the Flask proxy for idle.png + walk.png. If not found, picks a stable
+        // fallback from the known character list using a name hash so each agent
+        // gets a consistent appearance. The "default" folder uses different filenames
+        // so we avoid it and use real character slugs as fallbacks instead.
+        // Full game CHARACTER_LIST (slugified) — same pool the game uses for sprite assignment
+        const DEGA_FALLBACK_CHARS = [
+            'silas_stone', 'anya_bloom', 'elara_greenleaf', 'luna_stargazer', 'maya_sunstone',
+            'jett_blackwood', 'zara_stonehand', 'torvin_ironfist', 'jasper_north', 'willow_shadeleaf',
+            'zarek_infusor', 'rowan_nightbloom', 'darius_storm', 'kiro_flux', 'magnus_dawn',
+            'serin_quantex', 'vexa_lumicore', 'rin_amberfall', 'eri_phase', 'nira_vexaline',
+            'bran_tor', 'drav_kai', 'elin_sai', 'fenn_wol', 'jax_thorn',
+            'juno_ash', 'kael_vox', 'kall_myr', 'kess_ryn', 'kiro_zen',
+            'lio_flare', 'lira_sol', 'mira_lyn', 'nira_vex', 'nox_gray',
+            'nova_elm', 'orin_jet', 'rhea_kai', 'rook_val', 'rune_dax',
+            'ryn_frost', 'sira_myn', 'syl_vin', 'tyra_syn', 'tor_iron',
+            'vex_korn', 'vira_cel', 'vann_red', 'zane_ark', 'zara_myn',
+        ];
+        function pickFallbackSlug(name) {
+            let h = 0;
+            for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+            return DEGA_FALLBACK_CHARS[h % DEGA_FALLBACK_CHARS.length];
+        }
+
+        async function loadDEGACharacter(name) {
+            if (!game || !name) return;
+            // Hide the sprite while loading so Nyx doesn't flash before the DEGA char arrives
+            if (sprite) sprite.setAlpha(0);
+            const slug = name.toLowerCase().replace(/\s+/g, '_');
+
+            // Check which slug actually exists — fall back to a consistent character if 404
+            async function resolveSlug(s) {
+                try {
+                    const r = await fetch(`/dega/character/${encodeURIComponent(s)}/idle.png`, { method: 'HEAD' });
+                    return r.ok ? s : pickFallbackSlug(name);
+                } catch { return pickFallbackSlug(name); }
+            }
+            const resolvedSlug = await resolveSlug(slug);
+
+            const idleKey = `dega_idle_${resolvedSlug}`;
+            const walkKey = `dega_walk_${resolvedSlug}`;
+            // Frame spec: 16×32 px frames (DEGA uses 16×16 doubled height for 4-direction sheets)
+            const FW = 16, FH = 32;
+
+            function doApply() {
+                applyDEGAChar(idleKey, walkKey);
+            }
+
+            // If both textures already cached, apply immediately
+            if (game.textures.exists(idleKey) && game.textures.exists(walkKey)) {
+                doApply();
+                return;
+            }
+
+            // Queue loads for any missing textures
+            if (!game.textures.exists(idleKey)) {
+                game.load.spritesheet(idleKey, `/dega/character/${resolvedSlug}/idle.png`, { frameWidth: FW, frameHeight: FH });
+            }
+            if (!game.textures.exists(walkKey)) {
+                game.load.spritesheet(walkKey, `/dega/character/${resolvedSlug}/walk.png`, { frameWidth: FW, frameHeight: FH });
+            }
+
+            game.load.once('complete', () => {
+                // Only apply if both textures actually loaded — loader fires 'complete' even on 404
+                if (game.textures.exists(idleKey) && game.textures.exists(walkKey)) {
+                    doApply();
+                } else {
+                    // Restore sprite visibility with built-in character
+                    if (sprite) sprite.setAlpha(1);
+                    console.warn('[DEGA] Character sprites unavailable — keeping built-in character');
+                }
+            });
+            game.load.start();
+        }
+
+        function applyDEGAChar(idleKey, walkKey) {
+            if (!game || !sprite) return;
+
+            // Create idle animation (first 5 frames = front-facing idle row)
+            if (!game.anims.exists(idleKey)) {
+                game.anims.create({
+                    key: idleKey,
+                    frames: game.anims.generateFrameNumbers(idleKey, { start: 0, end: 4 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+            }
+            // Create walk animation (first 8 frames = front-facing walk row)
+            if (!game.anims.exists(walkKey)) {
+                game.anims.create({
+                    key: walkKey,
+                    frames: game.anims.generateFrameNumbers(walkKey, { start: 0, end: 7 }),
+                    frameRate: 10,
+                    repeat: -1
+                });
+            }
+
+            degaIdleKey = idleKey;
+            degaWalkKey = walkKey;
+            degaCharMode = true;
+
+            // Swap sprite to DEGA character: 5× scale (16×32 → 80×160), feet-anchored
+            sprite.setTexture(idleKey, 0);
+            sprite.setScale(5);
+            sprite.setOrigin(0.5, 0.9);
+            sprite.setAlpha(1);
+            playAnim();
+            console.log(`[DEGA] Loaded character sprite: ${idleKey}`);
+        }
+
+        // ─── DEGA Socket.IO integration ──────────────────────────────────────────
+        async function initDEGA() {
+            if (!AGENT_ID) return; // DEGA mode only active when agentId is in URL
+
+            // 1. Fetch agent profile via Flask proxy (same-origin, avoids CORS with DEGA)
+            function formatAgentLabel(name) {
+                return name.split(/[\s_]+/).map(w => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+            }
+            try {
+                const res  = await fetch(`/dega/agents/${encodeURIComponent(AGENT_ID)}`);
+                const data = await res.json();
+                // Fall back to URL agentId if API is down or returns no name
+                agentName  = data.name || AGENT_ID || null;
+                agentLabel = agentName ? formatAgentLabel(agentName) : null;
+                if (agentLabel) document.title = `${agentLabel} \u2014 Midnight.City`;
+            } catch (e) {
+                // Network error — still use URL param as name so character loads
+                agentName  = AGENT_ID || null;
+                agentLabel = agentName ? formatAgentLabel(agentName) : null;
+                if (agentLabel) document.title = `${agentLabel} \u2014 Midnight.City`;
+                console.warn('[DEGA] Agent profile fetch failed:', e.message);
+            }
+            // Load character sprite regardless of whether profile fetch succeeded
+            if (agentName) loadDEGACharacter(agentName);
+
+            loadAgentMetrics();
+
+            // 2. Connect Socket.IO
+            if (typeof io === 'undefined') {
+                console.warn('[DEGA] Socket.IO not loaded');
+                return;
+            }
+
+            const socket = io(DEGA_WS, { path: '/io', transports: ['websocket'], reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+
+            socket.on('connect', () => {
+                console.log('[DEGA] Socket connected');
+                socket.emit('viewer:connect');
+                loadingDone = true;
+                setDEGAState('idle', 'Connected \u2014 watching live');
+            });
+
+            socket.on('disconnect', () => {
+                console.log('[DEGA] Socket disconnected');
+            });
+
+            // Agent chat → show message in bubble, status shows who they're talking to
+            socket.on('game:chat', ({ sender, message, receiver }) => {
+                if (agentName && sender !== agentName) return;
+                const truncated = (message || '').slice(0, 60);
+                showOneOffBubble(truncated, 4500);
+                const withWho = receiver ? `Talking with ${receiver}\u2026` : 'In conversation\u2026';
+                setDEGAState('researching', withWho);
+                const to = receiver ? ` \u2192 ${receiver}` : '';
+                pushEvent('\uD83D\uDCAC', truncated.slice(0, 35) + to, { from: sender, to: receiver || null, message });
+            });
+
+            // Agent walking toward a target — set phrase once, position events won't overwrite
+            socket.on('game:walkingState', ({ username, target }) => {
+                if (agentName && username !== agentName) return;
+                const dest = typeof target === 'string' ? target : (target?.district || 'destination');
+                setDEGAState('executing', `${randomMovePrefix()} ${dest}\u2026`);
+                setDistrict(dest);
+                pushEvent('\uD83D\uDEB6', `Heading to ${dest}`, { destination: dest, agent: username });
+            });
+
+            // Agent in waiting/thinking state
+            socket.on('game:waitingState', ({ username, state: agentStateRaw }) => {
+                if (agentName && username !== agentName) return;
+                const s = (agentStateRaw || 'idle').toLowerCase();
+                if (s === 'thinking') setDEGAState('researching', 'Deep in thought\u2026');
+                else if (s === 'acting') setDEGAState('executing', 'Taking action\u2026');
+                else setDEGAState('idle', randomIdlePhrase());
+            });
+
+            // Agent arrived at target
+            socket.on('game:arrivedAtTarget', ({ username, target }) => {
+                if (agentName && username !== agentName) return;
+                setDEGAState('executing', `Arrived \u2014 ${target || 'destination'}`);
+                setDistrict(target);
+                pushEvent('\uD83D\uDCCD', `Arrived: ${target || 'destination'}`, { location: target, agent: username });
+                setTimeout(() => setDEGAState('idle', randomIdlePhrase()), 3000);
+            });
+
+            // Position update — manage idle timer only, don't overwrite status text
+            let positionIdleTimer = null;
+            socket.on('game:position', ({ username }) => {
+                if (agentName && username !== agentName) return;
+                clearTimeout(positionIdleTimer);
+                positionIdleTimer = setTimeout(() => setDEGAState('idle', randomIdlePhrase()), 5000);
+            });
+
+            // Movement ended — short delay then idle
+            socket.on('game:movementEnded', ({ username }) => {
+                if (agentName && username !== agentName) return;
+                clearTimeout(positionIdleTimer);
+                positionIdleTimer = setTimeout(() => setDEGAState('idle', randomIdlePhrase()), 1500);
+            });
+
+            // Blockchain / MCP transaction — real fields: username, operation, params
+            socket.on('game:mcpTransaction', ({ username: txUser, operation, params }) => {
+                if (agentName && txUser && txUser !== agentName) return;
+                const label = (operation || 'transaction').replace(/_/g, ' ');
+                showOneOffBubble(`\uD83D\uDD17 ${label}`, 3500);
+                setDEGAState('executing', label);
+                // Build rich raw object: operation + all params fields flattened
+                const raw = { operation, agent: txUser, ...(params || {}) };
+                pushEvent('\uD83D\uDD17', label, raw);
+            });
+
+            // Day cycle — ambient detail
+            socket.on('game:dayCycleStage', ({ stageName }) => {
+                if (stageName) {
+                    showOneOffBubble(`\uD83C\uDF06 ${stageName}`, 4000);
+                    pushEvent('\uD83C\uDF06', stageName, { stage: stageName });
+                }
+            });
+        }
+
+        // ─── Lofi radio ──────────────────────────────────────────────────────────
+        const LOFI_STREAMS = [
+            'https://play.streamafrica.net/lofiradio',
+            'https://streams.fluxfm.de/Chillhop/mp3-320/audio/',
+            'https://stream.zeno.fm/f3wvbbqmdg8uv',
+        ];
+        let lofiAudio = null, lofiPlaying = false, lofiIdx = 0;
+        const musicBtn = document.getElementById('music-btn');
+
+        function startLofi() {
+            lofiAudio = new Audio(LOFI_STREAMS[lofiIdx]);
+            lofiAudio.crossOrigin = 'anonymous';
+            lofiAudio.volume = 0.4;
+            lofiAudio.addEventListener('error', () => {
+                lofiIdx = (lofiIdx + 1) % LOFI_STREAMS.length;
+                if (lofiPlaying) { lofiAudio.src = LOFI_STREAMS[lofiIdx]; lofiAudio.play().catch(() => {}); }
+            });
+            lofiAudio.play().catch(() => {});
+            lofiPlaying = true;
+            musicBtn.title = 'Lofi on';
+            musicBtn.textContent = '\u266B \u25A0';
+        }
+
+        musicBtn.addEventListener('click', () => {
+            if (lofiPlaying) {
+                if (lofiAudio) { lofiAudio.pause(); lofiAudio.src = ''; lofiAudio = null; }
+                lofiPlaying = false;
+                musicBtn.textContent = '\u266B';
+                musicBtn.title = 'Tune in';
+            } else { startLofi(); }
+        });
+
+        new Phaser.Game(config);
+    </script>
+</body>
+</html>
